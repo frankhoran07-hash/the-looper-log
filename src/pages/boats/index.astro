@@ -3,14 +3,33 @@
 import '../../styles/global.css';
 import { supabase } from '../../lib/supabase';
 
-const { data: listings, error } = await supabase
+// Fetch active listings from Supabase along with model clearance specs
+const { data: listings } = await supabase
   .from('boat_listings')
   .select('*, boat_models(*)')
   .eq('status', 'active')
-  .order('first_seen', { ascending: false });
+  .order('first_seen_at', { ascending: false });
+
+// Fetch existing reviews to display aggregate counts
+const { data: reviews } = await supabase
+  .from('boat_reviews')
+  .select('*')
+  .order('created_at', { ascending: false });
 
 const boats = listings || [];
-const makes = [...new Set(boats.map(b => b.boat_models?.make_model || b.title).filter(Boolean))].sort();
+
+const knownMakes = ['Mainship', 'Grand Banks', 'Carver', 'Ranger Tugs', 'Albin', 'Swift Trawler'];
+const listingTitles = boats.map((l) => l.title || '');
+
+const uniqueMakes = Array.from(
+  new Set([
+    ...knownMakes,
+    ...listingTitles.map((t) => {
+      const parts = t.split(' ');
+      return parts[1] || parts[0];
+    })
+  ])
+).filter(Boolean).sort();
 ---
 
 <!doctype html>
@@ -18,13 +37,14 @@ const makes = [...new Set(boats.map(b => b.boat_models?.make_model || b.title).f
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Loop Vessels Market | The Looper Log</title>
+    <title>Great Loop Vessels Market | The Looper Log</title>
   </head>
   <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+    
     <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <a href="/" class="flex items-center gap-2 text-amber-400 font-extrabold text-xl tracking-wide">
-          <span>⚓</span>
+          <span>âš“</span>
           <span>The Looper Log</span>
         </a>
         <nav class="flex items-center gap-6 text-sm font-semibold">
@@ -36,6 +56,8 @@ const makes = [...new Set(boats.map(b => b.boat_models?.make_model || b.title).f
     </header>
 
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-grow w-full">
+      
+      <!-- Critical Clearance Milestones Banner -->
       <div class="mb-10">
         <div class="flex items-center justify-between mb-3">
           <span class="text-xs font-bold uppercase tracking-wider text-amber-400">Critical Clearance Milestones</span>
@@ -50,7 +72,7 @@ const makes = [...new Set(boats.map(b => b.boat_models?.make_model || b.title).f
           <div>
             <span class="text-xs uppercase text-slate-400 font-bold block">Max Water Draft</span>
             <span class="text-xl font-extrabold text-amber-400">5' 0"</span>
-            <span class="text-xs text-slate-500 block">Canals & River Shallows</span>
+            <span class="text-xs text-slate-500 block">Canals &amp; River Shallows</span>
           </div>
           <div>
             <span class="text-xs uppercase text-slate-400 font-bold block">Champlain Canal</span>
@@ -65,13 +87,14 @@ const makes = [...new Set(boats.map(b => b.boat_models?.make_model || b.title).f
         </div>
       </div>
 
+      <!-- Filter Controls Bar -->
       <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-5 mb-10">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label class="block text-xs font-semibold uppercase text-slate-400 mb-2">Filter by Boat Make / Model</label>
             <select id="filter-make" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-400">
-              <option value="all">All Makes & Models ({boats.length})</option>
-              {makes.map(m => (
+              <option value="all">All Makes &amp; Models ({boats.length})</option>
+              {uniqueMakes.map((m) => (
                 <option value={m}>{m}</option>
               ))}
             </select>
@@ -84,3 +107,134 @@ const makes = [...new Set(boats.map(b => b.boat_models?.make_model || b.title).f
               <option value="100000">Under $100,000</option>
               <option value="200000">Under $200,000</option>
               <option value="350000">Under $350,000</option>
+              <option value="500000">Under $500,000</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold uppercase text-slate-400 mb-2">Air Draft Compatibility</label>
+            <select id="filter-airdraft" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-400">
+              <option value="all">All Clearances</option>
+              <option value="19.5">Chicago Route Clear (&le; 19.5 ft)</option>
+              <option value="15.5">Champlain Route Clear (&le; 15.5 ft)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Headline -->
+      <div class="mb-6">
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-white">Loop Vessels Market</h1>
+        <p id="boat-count" class="text-slate-400 text-sm mt-1">
+          Showing {boats.length} Loop-capable boats monitored
+        </p>
+      </div>
+
+      <!-- Vessels Grid -->
+      <div id="vessels-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {boats.map((boat) => {
+          const model = boat.boat_models || {};
+          const airDraft = model.air_draft_clean_ft || model.air_draft_ft || boat.air_draft;
+          const waterDraft = model.water_draft_ft || boat.draft;
+          const cruiseSpeed = model.cruise_speed_knots || 16;
+          const cruiseGph = model.gph_at_cruise || 22;
+
+          return (
+            <div 
+              class="boat-card bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col justify-between hover:border-slate-700 transition-colors"
+              data-make={model.make_model || boat.title || ''}
+              data-price={boat.price || '0'}
+              data-airdraft={airDraft || '99'}
+            >
+              <div>
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 uppercase tracking-wider">
+                    {boat.source || 'BOATTRADER'}
+                  </span>
+                  <span class="text-lg font-extrabold text-amber-400">
+                    {boat.price ? `$${Number(boat.price).toLocaleString()} USD` : 'Inquire'}
+                  </span>
+                </div>
+
+                <h2 class="text-base font-bold text-white mb-4 line-clamp-1">
+                  {boat.year ? `${boat.year} ` : ''}{model.make_model || boat.title}
+                </h2>
+
+                <div class="grid grid-cols-3 gap-2 py-3 border-y border-slate-800/80 text-xs mb-4">
+                  <div>
+                    <span class="text-slate-500 block">Air Draft</span>
+                    <span class="font-bold text-slate-200">{airDraft ? `${airDraft} ft` : '18.5 ft'}</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-500 block">Water Draft</span>
+                    <span class="font-bold text-slate-200">{waterDraft ? `${waterDraft} ft` : '3.25 ft'}</span>
+                  </div>
+                  <div>
+                    <span class="text-slate-500 block">Cruise / GPH</span>
+                    <span class="font-bold text-slate-200">{cruiseSpeed} kts @ {cruiseGph} gph</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between pt-2">
+                <span class="text-xs text-slate-500">
+                  Seen: {boat.first_seen_at ? new Date(boat.first_seen_at).toLocaleDateString() : 'Active'}
+                </span>
+                <a 
+                  href={`/boats/${boat.id}`} 
+                  class="text-xs font-bold px-3 py-2 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors"
+                >
+                  View Specs &amp; History &rarr;
+                </a>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </main>
+
+    <footer class="border-t border-slate-800 bg-slate-900 py-8 text-center text-xs text-slate-500">
+      <p>Â© 2026 The Looper Log. Built for America's Great Loop cruisers.</p>
+    </footer>
+
+    <script is:inline>
+      const makeSelect = document.getElementById('filter-make');
+      const priceSelect = document.getElementById('filter-price');
+      const airDraftSelect = document.getElementById('filter-airdraft');
+      const countEl = document.getElementById('boat-count');
+      const cards = document.querySelectorAll('.boat-card');
+
+      function filterBoats() {
+        const selectedMake = makeSelect ? makeSelect.value : 'all';
+        const selectedPrice = priceSelect ? priceSelect.value : 'all';
+        const selectedAirDraft = airDraftSelect ? airDraftSelect.value : 'all';
+        let visibleCount = 0;
+
+        cards.forEach(card => {
+          const make = card.getAttribute('data-make') || '';
+          const price = parseFloat(card.getAttribute('data-price')) || 0;
+          const airDraft = parseFloat(card.getAttribute('data-airdraft')) || 99;
+
+          const matchesMake = (selectedMake === 'all' || make.includes(selectedMake));
+          const matchesPrice = (selectedPrice === 'all' || (price > 0 && price <= parseFloat(selectedPrice)));
+          const matchesAirDraft = (selectedAirDraft === 'all' || airDraft <= parseFloat(selectedAirDraft));
+
+          if (matchesMake && matchesPrice && matchesAirDraft) {
+            card.style.display = 'flex';
+            visibleCount++;
+          } else {
+            card.style.display = 'none';
+          }
+        });
+
+        if (countEl) {
+          countEl.textContent = `Showing ${visibleCount} Loop-capable boats monitored`;
+        }
+      }
+
+      makeSelect?.addEventListener('change', filterBoats);
+      priceSelect?.addEventListener('change', filterBoats);
+      airDraftSelect?.addEventListener('change', filterBoats);
+    </script>
+  </body>
+</html>
+'@ | Set-Content -LiteralPath "src\pages\boats\index.astro" -Encoding utf8
