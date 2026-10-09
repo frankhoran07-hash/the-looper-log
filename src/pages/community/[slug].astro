@@ -1,0 +1,267 @@
+---
+import { createClient } from '@supabase/supabase-js';
+
+export const prerender = false;
+
+const { slug } = Astro.params;
+
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || import.meta.env.SUPABASE_URL;
+const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Fetch topic details
+const { data: topic } = await supabase
+  .from('forum_topics')
+  .select('*')
+  .eq('slug', slug)
+  .single();
+
+// Fetch approved comments for this topic
+const { data: comments } = await supabase
+  .from('forum_comments')
+  .select('*')
+  .eq('topic_slug', slug)
+  .eq('approved', true)
+  .order('created_at', { ascending: true });
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{topic ? topic.title : 'Topic'} | The Looper Log</title>
+  <style>
+    :root {
+      --primary: #0f172a;
+      --accent: #0284c7;
+      --card-bg: #ffffff;
+      --bg-alt: #f8fafc;
+      --border: #e2e8f0;
+      --text: #334155;
+      --text-muted: #64748b;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-alt);
+      color: var(--text);
+    }
+    .container {
+      max-width: 800px;
+      margin: 2rem auto;
+      padding: 0 1.25rem;
+    }
+    .back-link {
+      display: inline-block;
+      margin-bottom: 1.5rem;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.95rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+    header {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    h1 {
+      margin: 0 0 0.5rem 0;
+      color: var(--primary);
+    }
+    .comments-section {
+      margin-bottom: 2.5rem;
+    }
+    .comment-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+    }
+    .comment-meta {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+    .author-info {
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .boat-name {
+      font-weight: normal;
+      color: var(--accent);
+      margin-left: 0.4rem;
+    }
+    .form-box {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    label {
+      display: block;
+      margin-bottom: 0.35rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+    input, textarea {
+      width: 100%;
+      padding: 0.6rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      font-size: 0.95rem;
+      box-sizing: border-box;
+      font-family: inherit;
+    }
+    textarea { height: 110px; resize: vertical; }
+    button {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 0.65rem 1.25rem;
+      border-radius: 4px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button:hover { background: #0369a1; }
+    .status-msg {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      border-radius: 4px;
+      display: none;
+      font-size: 0.9rem;
+    }
+    .status-success {
+      background: #dcfce7;
+      color: #15803d;
+      border: 1px solid #bbf7d0;
+    }
+    .status-error {
+      background: #fee2e2;
+      color: #b91c1c;
+      border: 1px solid #fecaca;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <a href="/community" class="back-link">&larr; Back to all discussions</a>
+
+    {topic ? (
+      <header>
+        <h1>{topic.title}</h1>
+        {topic.description && <p style="margin: 0; color: var(--text-muted);">{topic.description}</p>}
+      </header>
+
+      <section class="comments-section">
+        <h2>Replies ({comments ? comments.length : 0})</h2>
+        {comments && comments.length > 0 ? (
+          comments.map((c) => (
+            <div class="comment-card">
+              <div class="comment-meta">
+                <span class="author-info">
+                  {c.author_name}
+                  {c.boat_name && <span class="boat-name">• {c.boat_name}</span>}
+                </span>
+                <span>{new Date(c.created_at).toLocaleDateString()}</span>
+              </div>
+              <p style="margin: 0; line-height: 1.5;">{c.comment_text}</p>
+            </div>
+          ))
+        ) : (
+          <p style="color: var(--text-muted);">No replies yet. Start the conversation below!</p>
+        )}
+      </section>
+
+      <section class="form-box">
+        <h3>Leave a Reply</h3>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: -0.25rem; margin-bottom: 1rem;">
+          To prevent spam, new comments are reviewed by the moderator before appearing.
+        </p>
+
+        <form id="comment-form">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+              <label for="author_name">Name *</label>
+              <input type="text" id="author_name" name="author_name" required placeholder="Captain Bob" />
+            </div>
+            <div class="form-group">
+              <label for="boat_name">Boat Make / Name (Optional)</label>
+              <input type="text" id="boat_name" name="boat_name" placeholder="M/V Solitude" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="comment_text">Comment *</label>
+            <textarea id="comment_text" name="comment_text" required placeholder="Share your experience, advice, or question..."></textarea>
+          </div>
+          <button type="submit" id="submit-btn">Post Comment</button>
+        </form>
+
+        <div id="status-box" class="status-msg"></div>
+      </section>
+    ) : (
+      <p>Topic not found.</p>
+    )}
+  </div>
+
+  <script define:vars={{ slug, supabaseUrl, supabaseKey }}>
+    const form = document.getElementById('comment-form');
+    const statusBox = document.getElementById('status-box');
+    const submitBtn = document.getElementById('submit-btn');
+
+    if (form) {
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Submitting...';
+
+        const author_name = document.getElementById('author_name').value.trim();
+        const boat_name = document.getElementById('boat_name').value.trim();
+        const comment_text = document.getElementById('comment_text').value.trim();
+
+        try {
+          const res = await fetch(`${supabaseUrl}/rest/v1/forum_comments`, {
+            method: 'POST',
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({
+              topic_slug: slug,
+              author_name,
+              boat_name: boat_name || null,
+              comment_text,
+              approved: false
+            })
+          });
+
+          if (!res.ok) throw new Error('Failed to submit comment.');
+
+          form.reset();
+          statusBox.className = 'status-msg status-success';
+          statusBox.innerText = 'Thank you! Your comment was received and will be visible once approved by moderation.';
+          statusBox.style.display = 'block';
+        } catch (err) {
+          statusBox.className = 'status-msg status-error';
+          statusBox.innerText = 'There was an issue submitting your comment. Please try again.';
+          statusBox.style.display = 'block';
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.innerText = 'Post Comment';
+        }
+      });
+    }
+  </script>
+</body>
+</html>
