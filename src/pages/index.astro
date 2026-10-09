@@ -1,124 +1,120 @@
 ---
-// Standalone Index Page - No external layout dependency
+import '../styles/global.css';
 ---
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>The Looper Log | Great Loop Community, Vessels & Hazards</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Looper Log | Great Loop Community, Vessels & Hazards</title>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
-  <!-- Main Navigation -->
-  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <a href="/" class="flex items-center gap-2 text-amber-400 font-extrabold text-xl tracking-wide">
-        <span>⚓</span>
-        <span>The Looper Log</span>
-      </a>
-      <nav class="flex items-center gap-6 text-sm font-semibold">
-        <a href="/boats" class="text-slate-300 hover:text-amber-400 transition">Vessels</a>
-        <a href="/clearance" class="text-slate-300 hover:text-amber-400 transition">Clearance Checker</a>
-        <a href="/map" class="text-slate-300 hover:text-amber-400 transition">Hazard Map</a>
-      </nav>
-    </div>
-  </header>
-
-  <!-- Hero Section -->
-  <section class="relative bg-slate-900 text-white overflow-hidden border-b border-slate-800">
-    <div class="absolute inset-0 opacity-25">
-      <img 
-        src="/hero-loop-map.jpg" 
-        alt="The Looper Log Great Loop Navigation Map" 
-        class="w-full h-full object-cover object-center"
-      />
-    </div>
-    <div class="relative max-w-5xl mx-auto px-4 py-20 sm:py-28 flex flex-col items-center text-center">
-      <span class="inline-block py-1 px-3 mb-4 text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/40">
-        6,000 Miles • 150+ Locks • One Cruiser Community
-      </span>
-      <h1 class="text-4xl sm:text-6xl font-black tracking-tight max-w-4xl leading-tight">
-        Plan, Cruise, and Connect on America's Great Loop
-      </h1>
-      <p class="mt-6 text-lg sm:text-xl text-slate-300 max-w-2xl leading-relaxed">
-        The centralized hub built by and for Loopers. Search verified vessels with bridge clearance checks, track live navigational hazards, and connect with fellow cruisers.
-      </p>
-      
-      <div class="mt-8 flex flex-wrap justify-center gap-4">
-        <a href="/map" class="px-6 py-3.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition shadow-lg">
-          Explore Hazard Map
+    <!-- Header Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-2 text-amber-400 font-extrabold text-xl tracking-wide">
+          <span>⚓</span>
+          <span>The Looper Log</span>
         </a>
-        <a href="/boats" class="px-6 py-3.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold border border-slate-700 transition">
-          Search Loop Vessels
-        </a>
-        <a href="/clearance" class="px-6 py-3.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold border border-slate-700 transition">
-          Clearance Checker
-        </a>
+        <nav class="flex items-center gap-6 text-sm font-semibold">
+          <a href="/boats" class="text-slate-300 hover:text-amber-400 transition-colors">Vessels</a>
+          <a href="/clearance" class="text-slate-300 hover:text-amber-400 transition-colors">Clearance Checker</a>
+          <a href="/map" class="text-slate-300 hover:text-amber-400 transition-colors">Hazard Map</a>
+        </nav>
       </div>
-    </div>
-  </section>
+    </header>
 
-  <!-- Community Hub Cards -->
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex-grow">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-      
-      <!-- Card 1: Vessel Market -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-between hover:border-slate-700 transition">
-        <div>
-          <div class="w-12 h-12 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-2xl mb-4">
-            ⚓
-          </div>
-          <h2 class="text-xl font-bold text-white mb-2">Vessel Directory</h2>
-          <p class="text-slate-400 text-sm leading-relaxed mb-6">
-            Filter loop-ready trawlers, motor yachts, and tugs vetted against fixed bridge obstacles (19.6 ft in Chicago) and inland draft depth restrictions.
-          </p>
+    <!-- Hero Section -->
+    <section class="relative bg-slate-900 text-white overflow-hidden border-b border-slate-800">
+      <div class="absolute inset-0 opacity-25">
+        <img 
+          src="/hero-loop-map.jpg" 
+          alt="The Looper Log Great Loop Navigation Map" 
+          class="w-full h-full object-cover object-center"
+        />
+      </div>
+      <div class="relative max-w-5xl mx-auto px-4 py-20 sm:py-28 flex flex-col items-center text-center">
+        <span class="inline-block py-1 px-3 mb-4 text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/40">
+          6,000 Miles • 150+ Locks • Cruiser Community
+        </span>
+        <h1 class="text-4xl sm:text-6xl font-black tracking-tight max-w-4xl leading-tight">
+          Plan, Cruise, and Connect on America's Great Loop
+        </h1>
+        <p class="mt-6 text-lg sm:text-xl text-slate-300 max-w-2xl leading-relaxed">
+          The centralized hub built by and for Loopers. Search verified vessels with bridge clearance checks, track live navigational hazards, and share knowledge from the helm.
+        </p>
+        
+        <div class="mt-8 flex flex-wrap justify-center gap-4">
+          <a href="/map" class="px-6 py-3.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition-colors shadow-lg">
+            Explore Hazard Map
+          </a>
+          <a href="/boats" class="px-6 py-3.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold border border-slate-700 transition-colors">
+            Search Loop Vessels
+          </a>
+          <a href="/clearance" class="px-6 py-3.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold border border-slate-700 transition-colors">
+            Clearance Checker
+          </a>
         </div>
-        <a href="/boats" class="text-sm font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1">
-          Browse Vessels <span>&rarr;</span>
-        </a>
       </div>
+    </section>
 
-      <!-- Card 2: Hazard Lookout Map -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-between hover:border-slate-700 transition">
-        <div>
-          <div class="w-12 h-12 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-2xl mb-4">
-            📍
+    <!-- Hub Feature Cards -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex-grow w-full">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-between hover:border-slate-700 transition-colors">
+          <div>
+            <div class="w-12 h-12 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-2xl mb-4">
+              ⚓
+            </div>
+            <h2 class="text-xl font-bold text-white mb-2">Vessel Directory</h2>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Filter loop-ready trawlers, motor yachts, and tugs vetted against fixed bridge obstacles (19.6 ft in Chicago) and inland draft depth restrictions.
+            </p>
           </div>
-          <h2 class="text-xl font-bold text-white mb-2">Hazard Lookout Map</h2>
-          <p class="text-slate-400 text-sm leading-relaxed mb-6">
-            Crowdsourced warnings from the helm: track shifting shoals, deadheads, lock repairs, and temporary bridge air-draft limitations.
-          </p>
+          <a href="/boats" class="text-sm font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1">
+            Browse Vessels <span>&rarr;</span>
+          </a>
         </div>
-        <a href="/map" class="text-sm font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1">
-          View Live Alerts <span>&rarr;</span>
-        </a>
-      </div>
 
-      <!-- Card 3: Clearance Calculator -->
-      <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-between hover:border-slate-700 transition">
-        <div>
-          <div class="w-12 h-12 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-2xl mb-4">
-            📏
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-between hover:border-slate-700 transition-colors">
+          <div>
+            <div class="w-12 h-12 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-2xl mb-4">
+              📍
+            </div>
+            <h2 class="text-xl font-bold text-white mb-2">Hazard Lookout Map</h2>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Crowdsourced warnings from the helm: track shifting shoals, deadheads, lock repairs, and temporary bridge air-draft limitations.
+            </p>
           </div>
-          <h2 class="text-xl font-bold text-white mb-2">Clearance Calculator</h2>
-          <p class="text-slate-400 text-sm leading-relaxed mb-6">
-            Test any boat dimensions against the fixed bottlenecks along the loop: Lemont Bridge (19' 6"), Champlain Canal (15' 6"), and eastern Erie Canal (21' 0").
-          </p>
+          <a href="/map" class="text-sm font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1">
+            View Live Alerts <span>&rarr;</span>
+          </a>
         </div>
-        <a href="/clearance" class="text-sm font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1">
-          Calculate Clearance <span>&rarr;</span>
-        </a>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-between hover:border-slate-700 transition-colors">
+          <div>
+            <div class="w-12 h-12 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-2xl mb-4">
+              📏
+            </div>
+            <h2 class="text-xl font-bold text-white mb-2">Clearance Calculator</h2>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Test any boat dimensions against the fixed bottlenecks along the loop: Lemont Bridge (19' 6"), Champlain Canal (15' 6"), and eastern Erie Canal (21' 0").
+            </p>
+          </div>
+          <a href="/clearance" class="text-sm font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1">
+            Calculate Clearance <span>&rarr;</span>
+          </a>
+        </div>
+
       </div>
+    </main>
 
-    </div>
-  </main>
+    <footer class="border-t border-slate-800 bg-slate-900 py-8 text-center text-xs text-slate-500">
+      <p>© 2026 The Looper Log. Built for America's Great Loop cruisers.</p>
+    </footer>
 
-  <footer class="border-t border-slate-800 bg-slate-900 py-8 text-center text-xs text-slate-500">
-    <p>© 2026 The Looper Log. Built for America's Great Loop cruisers.</p>
-  </footer>
-
-</body>
+  </body>
 </html>

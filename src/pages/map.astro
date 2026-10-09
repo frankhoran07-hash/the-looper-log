@@ -1,5 +1,5 @@
 ---
-// Standalone Hazard Map Page - No external layout dependency
+import '../styles/global.css';
 import { supabase } from '../lib/supabase';
 
 let hazards = [];
@@ -16,97 +16,93 @@ try {
 }
 ---
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hazard Lookout Map | The Looper Log</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-</head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hazard Lookout Map | The Looper Log</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
-  <!-- Main Navigation -->
-  <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-      <a href="/" class="flex items-center gap-2 text-amber-400 font-extrabold text-xl tracking-wide">
-        <span>⚓</span>
-        <span>The Looper Log</span>
-      </a>
-      <nav class="flex items-center gap-6 text-sm font-semibold">
-        <a href="/boats" class="text-slate-300 hover:text-amber-400 transition">Vessels</a>
-        <a href="/clearance" class="text-slate-300 hover:text-amber-400 transition">Clearance Checker</a>
-        <a href="/map" class="text-amber-400">Hazard Map</a>
-      </nav>
-    </div>
-  </header>
-
-  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
-    <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-      <div>
-        <h1 class="text-3xl font-extrabold text-white">Great Loop Hazard Map</h1>
-        <p class="text-slate-400 text-sm mt-1">Real-time alerts, shoals, lock delays, and submerged hazards reported along the route.</p>
+    <!-- Header Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-2 text-amber-400 font-extrabold text-xl tracking-wide">
+          <span>⚓</span>
+          <span>The Looper Log</span>
+        </a>
+        <nav class="flex items-center gap-6 text-sm font-semibold">
+          <a href="/boats" class="text-slate-300 hover:text-amber-400 transition-colors">Vessels</a>
+          <a href="/clearance" class="text-slate-300 hover:text-amber-400 transition-colors">Clearance Checker</a>
+          <a href="/map" class="text-amber-400">Hazard Map</a>
+        </nav>
       </div>
-      <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-md font-medium">
-        💡 Double-click on the map to place a warning marker
-      </span>
-    </div>
+    </header>
 
-    <!-- Map Canvas Container -->
-    <div id="map" class="w-full h-[680px] rounded-xl border border-slate-800 shadow-2xl z-0"></div>
-  </main>
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
+      <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h1 class="text-3xl font-extrabold text-white">Great Loop Hazard Map</h1>
+          <p class="text-slate-400 text-sm mt-1">Real-time alerts, shoals, lock delays, and submerged hazards reported along the route.</p>
+        </div>
+        <span class="text-xs bg-amber-500/20 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-md font-medium">
+          💡 Double-click on the map to place a warning marker
+        </span>
+      </div>
 
-  <footer class="border-t border-slate-800 bg-slate-900 py-6 text-center text-xs text-slate-500">
-    <p>© 2026 The Looper Log. Built for America's Great Loop cruisers.</p>
-  </footer>
+      <!-- Map Canvas -->
+      <div id="map" class="w-full h-[680px] rounded-xl border border-slate-800 shadow-2xl z-0"></div>
+    </main>
 
-  <!-- Leaflet Runtime Script -->
-  <script is:inline define:vars={{ initialHazards: hazards }}>
-    document.addEventListener('DOMContentLoaded', () => {
-      // Center view on Great Loop inland waterways
-      const map = L.map('map').setView([36.5, -85.0], 5);
+    <footer class="border-t border-slate-800 bg-slate-900 py-6 text-center text-xs text-slate-500">
+      <p>© 2026 The Looper Log. Built for America's Great Loop cruisers.</p>
+    </footer>
 
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 18,
-        attribution: '© OpenStreetMap contributors'
-      }).addTo(map);
+    <!-- Leaflet Runtime Script -->
+    <script is:inline define:vars={{ initialHazards: hazards }}>
+      document.addEventListener('DOMContentLoaded', () => {
+        const map = L.map('map').setView([36.5, -85.0], 5);
 
-      // Render existing hazards from Supabase
-      initialHazards.forEach(h => {
-        L.marker([h.latitude, h.longitude])
-          .addTo(map)
-          .bindPopup(`
-            <div style="font-family: sans-serif; font-size: 13px; color: #0f172a; min-width: 180px;">
-              <span style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #b91c1c;">${h.category || 'Hazard'}</span><br/>
-              <strong style="font-size: 14px;">${h.title}</strong>
-              <p style="margin: 6px 0 4px 0; color: #334155;">${h.description || 'No description provided.'}</p>
-              <div style="font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 4px;">
-                Reported by: ${h.reported_by || 'Anonymous'}
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 18,
+          attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        initialHazards.forEach(h => {
+          L.marker([h.latitude, h.longitude])
+            .addTo(map)
+            .bindPopup(`
+              <div style="font-family: sans-serif; font-size: 13px; color: #0f172a; min-width: 180px;">
+                <span style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #b91c1c;">${h.category || 'Hazard'}</span><br/>
+                <strong style="font-size: 14px;">${h.title}</strong>
+                <p style="margin: 6px 0 4px 0; color: #334155;">${h.description || 'No description provided.'}</p>
+                <div style="font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 4px;">
+                  Reported by: ${h.reported_by || 'Anonymous'}
+                </div>
               </div>
-            </div>
-          `);
-      });
+            `);
+        });
 
-      // Quick prompt to drop marker on double-click
-      map.on('dblclick', (e) => {
-        const title = prompt("Enter hazard title (e.g. 'Shallow Shoal at Low Tide'):");
-        if (!title) return;
-        const description = prompt("Enter details/notes for other cruisers:");
+        map.on('dblclick', (e) => {
+          const title = prompt("Enter hazard title (e.g. 'Shallow Shoal at Low Tide'):");
+          if (!title) return;
+          const description = prompt("Enter details/notes for other cruisers:");
 
-        L.marker([e.latlng.lat, e.latlng.lng])
-          .addTo(map)
-          .bindPopup(`
-            <div style="font-family: sans-serif; font-size: 13px; color: #0f172a;">
-              <span style="font-size: 11px; font-weight: bold; color: #b91c1c;">ALERT</span><br/>
-              <strong style="font-size: 14px;">${title}</strong>
-              <p style="margin: 6px 0 0 0; color: #334155;">${description || ''}</p>
-            </div>
-          `)
-          .openPopup();
+          L.marker([e.latlng.lat, e.latlng.lng])
+            .addTo(map)
+            .bindPopup(`
+              <div style="font-family: sans-serif; font-size: 13px; color: #0f172a;">
+                <span style="font-size: 11px; font-weight: bold; color: #b91c1c;">ALERT</span><br/>
+                <strong style="font-size: 14px;">${title}</strong>
+                <p style="margin: 6px 0 0 0; color: #334155;">${description || ''}</p>
+              </div>
+            `)
+            .openPopup();
+        });
       });
-    });
-  </script>
-</body>
+    </script>
+  </body>
 </html>
