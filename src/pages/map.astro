@@ -1,0 +1,70 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { supabase } from '../lib/supabase';
+
+const { data: hazards } = await supabase
+  .from('hazard_markers')
+  .select('*')
+  .order('created_at', { ascending: false });
+---
+
+<Layout title="Hazards Map | The Looper Log">
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <section class="max-w-6xl mx-auto px-4 py-8">
+    <div class="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div>
+        <h1 class="text-3xl font-extrabold text-slate-900">Great Loop Hazard Map</h1>
+        <p class="text-slate-600 text-sm mt-1">Real-time alerts, shoals, lock delays, and submerged hazards submitted by cruisers.</p>
+      </div>
+      <span class="text-xs bg-amber-100 text-amber-800 border border-amber-300 px-3 py-1.5 rounded-md font-medium">
+        💡 Double-click anywhere on the map to log a hazard
+      </span>
+    </div>
+
+    <!-- Map Container -->
+    <div id="map" class="w-full h-[650px] rounded-xl border border-slate-300 shadow-inner z-0"></div>
+  </section>
+
+  <!-- Client Map Initialization Script -->
+  <script is:inline define:vars={{ initialHazards: hazards || [] }}>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Centered along the Great Loop inland/eastern corridor
+      const map = L.map('map').setView([36.0, -84.0], 5);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+
+      // Render existing database hazards
+      initialHazards.forEach(h => {
+        L.marker([h.latitude, h.longitude])
+          .addTo(map)
+          .bindPopup(`
+            <div style="font-family: sans-serif; font-size: 13px;">
+              <strong style="color: #b91c1c;">[${h.category}]</strong><br/>
+              <b>${h.title}</b><br/>
+              <p style="margin: 4px 0;">${h.description || ''}</p>
+              <small style="color: #64748b;">Reported by: ${h.reported_by}</small>
+            </div>
+          `);
+      });
+
+      // Prompt to add on double-click
+      map.on('dblclick', async (e) => {
+        const title = prompt("Enter hazard title (e.g. 'Shallow Shoal at Low Tide'):");
+        if (!title) return;
+        const description = prompt("Enter details/notes for other cruisers:");
+
+        // Add visual pin immediately
+        L.marker([e.latlng.lat, e.latlng.lng])
+          .addTo(map)
+          .bindPopup(`<b>${title}</b><br/>${description || ''}`)
+          .openPopup();
+      });
+    });
+  </script>
+</Layout>

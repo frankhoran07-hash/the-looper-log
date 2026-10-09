@@ -1,423 +1,94 @@
 ---
-import '../styles/global.css';
-import { supabase } from '../lib/supabase';
-
-// Fetch active listings from Supabase along with model clearance specs
-const { data: listings } = await supabase
-  .from('boat_listings')
-  .select('*, boat_models(*)')
-  .eq('status', 'active')
-  .order('first_seen_at', { ascending: false });
-
-// Fetch existing reviews to display aggregate counts
-const { data: reviews } = await supabase
-  .from('boat_reviews')
-  .select('*')
-  .order('created_at', { ascending: false });
-
-// Extract distinct makes/brands from listings for the dropdown
-const knownMakes = ['Mainship', 'Grand Banks', 'Carver', 'Ranger Tugs', 'Albin', 'Swift Trawler'];
-const listingTitles = listings ? listings.map((l) => l.title) : [];
-
-// Combine known makes and any detected in titles into a clean, unique list
-const uniqueMakes = Array.from(
-  new Set([
-    ...knownMakes,
-    ...listingTitles.map((t) => {
-      const parts = t.split(' ');
-      return parts[1] || parts[0];
-    })
-  ])
-).filter(Boolean).sort();
+import Layout from '../layouts/Layout.astro';
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>The Looper Log | Great Loop Boat Marketplace & Community</title>
-  </head>
-  <body class="bg-slate-900 text-slate-100 min-h-screen">
-    <!-- Header -->
-    <header class="border-b border-slate-800 bg-slate-950/80 sticky top-0 z-40 backdrop-blur">
-      <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <span class="text-2xl">⚓</span>
-          <div>
-            <h1 class="text-xl font-bold tracking-tight text-amber-400">The Looper Log</h1>
-            <p class="text-xs text-slate-400">America's Great Loop Marketplace, Specs & Community Logs</p>
-          </div>
-        </div>
-        <div class="flex items-center gap-4 text-sm font-medium">
-          <a href="#listings" class="hover:text-amber-400 transition-colors">Vessels</a>
-          <a href="/clearance" class="hover:text-amber-400 transition-colors">Clearance Checker</a>
-          <a href="#reviews" class="hover:text-amber-400 transition-colors">Community Logs</a>
-          <button 
-            id="open-review-modal-btn"
-            class="px-3.5 py-1.5 rounded-lg bg-amber-400 text-slate-950 font-semibold hover:bg-amber-300 transition-colors"
-          >
-            + Log Experience
-          </button>
-        </div>
-      </div>
-    </header>
-
-    <main class="max-w-7xl mx-auto px-4 py-8">
-      <!-- Clearances Quick Bar -->
-      <section class="mb-8 bg-slate-800/40 border border-slate-800 rounded-xl p-5">
-        <div class="flex items-center justify-between mb-3">
-          <h2 class="text-xs uppercase tracking-wider font-bold text-amber-400">Critical Clearance Milestones</h2>
-          <a href="/clearance" class="text-xs text-amber-400 hover:underline font-semibold">Test Your Boat Clearance →</a>
-        </div>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-          <div class="bg-slate-900/90 p-3 rounded-lg border border-slate-800/80">
-            <span class="text-slate-400 block text-xs">Bridge Bottleneck</span>
-            <span class="font-bold text-base text-amber-300">19' 6"</span>
-            <span class="text-slate-500 block text-xs">Chicago / Lemont Bridge</span>
-          </div>
-          <div class="bg-slate-900/90 p-3 rounded-lg border border-slate-800/80">
-            <span class="text-slate-400 block text-xs">Max Water Draft</span>
-            <span class="font-bold text-base text-slate-200">5' 0"</span>
-            <span class="text-slate-500 block text-xs">Canals & River Shallows</span>
-          </div>
-          <div class="bg-slate-900/90 p-3 rounded-lg border border-slate-800/80">
-            <span class="text-slate-400 block text-xs">Champlain Canal</span>
-            <span class="font-bold text-base text-slate-200">15' 6"</span>
-            <span class="text-slate-500 block text-xs">Fixed bridges northward</span>
-          </div>
-          <div class="bg-slate-900/90 p-3 rounded-lg border border-slate-800/80">
-            <span class="text-slate-400 block text-xs">Erie Canal (Eastern)</span>
-            <span class="font-bold text-base text-slate-200">21' 0"</span>
-            <span class="text-slate-500 block text-xs">Waterford to Oswego cut</span>
-          </div>
-        </div>
-      </section>
-
-      <!-- Filter Controls -->
-      <section class="mb-8 bg-slate-800/60 border border-slate-700/60 rounded-xl p-5">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <!-- Dropdown Make Selector -->
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Filter by Boat Make / Model</label>
-            <select
-              id="make-filter"
-              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-400 text-slate-200"
-            >
-              <option value="all">All Makes & Models ({listings?.length || 0})</option>
-              <option value="mainship">Mainship</option>
-              <option value="grand banks">Grand Banks</option>
-              <option value="carver">Carver</option>
-              <option value="ranger tug">Ranger Tugs</option>
-              <option value="albin">Albin</option>
-            </select>
-          </div>
-
-          <!-- Price Filter -->
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Max Budget</label>
-            <select
-              id="price-filter"
-              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-400 text-slate-200"
-            >
-              <option value="all">Any Price</option>
-              <option value="50000">Under $50,000</option>
-              <option value="100000">Under $100,000</option>
-              <option value="200000">Under $200,000</option>
-              <option value="350000">Under $350,000</option>
-            </select>
-          </div>
-
-          <!-- Clearance Filter -->
-          <div>
-            <label class="block text-xs font-semibold text-slate-300 mb-1">Air Draft Compatibility</label>
-            <select
-              id="draft-filter"
-              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-400 text-slate-200"
-            >
-              <option value="all">All Clearances</option>
-              <option value="19.5">Under 19' 6" (Clears Chicago Bridge)</option>
-              <option value="15.5">Under 15' 6" (Clears Champlain)</option>
-            </select>
-          </div>
-        </div>
-      </section>
-
-      <!-- Vessel Grid -->
-      <section id="listings" class="mb-14">
-        <div class="flex items-center justify-between mb-5">
-          <div>
-            <h2 class="text-2xl font-bold tracking-tight">Loop Vessels Market</h2>
-            <p id="listing-counter" class="text-slate-400 text-sm">
-              Showing {listings?.length || 0} Loop-capable boats monitored
-            </p>
-          </div>
-        </div>
-
-        <div id="boat-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {listings && listings.map((boat) => (
-            <div
-              class="boat-card bg-slate-800/40 border border-slate-800 hover:border-slate-700 rounded-xl p-5 flex flex-col justify-between transition-all hover:bg-slate-800/60"
-              data-title={boat.title.toLowerCase()}
-              data-price={boat.current_asking_price}
-              data-air-draft={boat.boat_models?.air_draft_feet || 99}
-            >
-              <div>
-                <div class="flex items-center justify-between gap-2 mb-2">
-                  <span class="text-xs uppercase tracking-wider font-semibold px-2 py-0.5 rounded bg-slate-700/60 text-slate-300">
-                    {boat.source_site}
-                  </span>
-                  <span class="text-lg font-bold text-amber-400">
-                    ${boat.current_asking_price.toLocaleString()} {boat.currency}
-                  </span>
-                </div>
-
-                <h3 class="text-lg font-semibold line-clamp-2 text-slate-100 hover:text-amber-400 transition-colors">
-                  <a href={`/boats/${boat.id}`}>
-                    {boat.title}
-                  </a>
-                </h3>
-
-                {boat.boat_models && (
-                  <div class="mt-4 pt-3 border-t border-slate-800/80 flex gap-4 text-xs text-slate-400">
-                    <div>
-                      <span class="block text-slate-500">Air Draft</span>
-                      <span class="font-medium text-slate-200">{boat.boat_models.air_draft_feet} ft</span>
-                    </div>
-                    <div>
-                      <span class="block text-slate-500">Water Draft</span>
-                      <span class="font-medium text-slate-200">{boat.boat_models.water_draft_feet} ft</span>
-                    </div>
-                    <div>
-                      <span class="block text-slate-500">Cruise / GPH</span>
-                      <span class="font-medium text-slate-200">
-                        {boat.boat_models.typical_cruise_speed_knots} kts @ {boat.boat_models.typical_gph} gph
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div class="mt-5 pt-3 border-t border-slate-800/60 flex items-center justify-between">
-                <span class="text-xs text-slate-500">
-                  Seen: {new Date(boat.last_seen_at).toLocaleDateString()}
-                </span>
-                <a
-                  href={`/boats/${boat.id}`}
-                  class="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-400 text-slate-950 hover:bg-amber-300 transition-colors"
-                >
-                  View Specs & History →
-                </a>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <!-- Community Boater Experiences / Logs -->
-      <section id="reviews" class="pt-8 border-t border-slate-800">
-        <div class="flex items-center justify-between mb-6">
-          <div>
-            <h2 class="text-2xl font-bold tracking-tight">Looper Community Logs</h2>
-            <p class="text-slate-400 text-sm">Real owner feedback on clearance, lock handling, and fuel burn</p>
-          </div>
-          <button 
-            id="open-review-modal-btn-2"
-            class="text-xs font-semibold px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700"
-          >
-            Leave Your Feedback
-          </button>
-        </div>
-
-        <div id="reviews-container" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {reviews && reviews.length > 0 ? (
-            reviews.map((r) => (
-              <div class="bg-slate-800/30 border border-slate-800 rounded-xl p-5">
-                <div class="flex items-center justify-between mb-2">
-                  <div class="flex items-center gap-2">
-                    <span class="font-bold text-slate-200 text-sm">{r.author_name}</span>
-                    {r.is_gold_looper && (
-                      <span class="text-[10px] uppercase font-bold bg-amber-400/20 text-amber-300 px-2 py-0.5 rounded border border-amber-400/40">
-                        Gold Looper
-                      </span>
-                    )}
-                  </div>
-                  <span class="text-amber-400 text-xs">★ {r.overall_rating}/5</span>
-                </div>
-                <p class="text-slate-300 text-sm mb-3 italic">"{r.review_text}"</p>
-                <div class="flex gap-4 text-xs text-slate-400 border-t border-slate-800/60 pt-2">
-                  <span>Lock Rating: {r.lock_handling_rating}/5</span>
-                  <span>Rough Water: {r.rough_water_rating}/5</span>
-                  {r.real_world_cruise_knots && (
-                    <span>Cruise: {r.real_world_cruise_knots} kts</span>
-                  )}
-                </div>
-              </div>
-            ))
-          ) : (
-            <div class="col-span-2 text-center py-8 text-slate-500 text-sm">
-              No community reviews yet. Be the first Looper to log feedback!
-            </div>
-          )}
-        </div>
-      </section>
-    </main>
-
-    <!-- Review Modal Dialog -->
-    <div id="review-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
-      <div class="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg p-6 shadow-2xl relative">
-        <button id="close-modal-btn" class="absolute top-4 right-4 text-slate-400 hover:text-slate-200 text-lg">✕</button>
-        <h3 class="text-xl font-bold text-amber-400 mb-1">Log Your Vessel Experience</h3>
-        <p class="text-xs text-slate-400 mb-4">Help prospective Great Loop cruisers find the right boat.</p>
-
-        <form id="review-form" class="space-y-3.5 text-sm">
-          <div>
-            <label class="block text-xs text-slate-400 mb-1">Your Name / Vessel Name</label>
-            <input type="text" id="form-name" required placeholder="Captain Frank / M/V Wanderer" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-400" />
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs text-slate-400 mb-1">Overall Rating (1-5)</label>
-              <select id="form-rating" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
-                <option value="5">5 - Excellent for the Loop</option>
-                <option value="4">4 - Good</option>
-                <option value="3">3 - Average</option>
-                <option value="2">2 - Challenging</option>
-                <option value="1">1 - Not Recommended</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs text-slate-400 mb-1">Lock Handling (1-5)</label>
-              <select id="form-lock" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
-                <option value="5">5 - Very Easy (Walkarounds/lines)</option>
-                <option value="4">4 - Good</option>
-                <option value="3">3 - Manageable</option>
-                <option value="2">2 - Difficult</option>
-              </select>
-            </div>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div>
-              <label class="block text-xs text-slate-400 mb-1">Rough Water Handling (1-5)</label>
-              <select id="form-rough" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200">
-                <option value="5">5 - Very Stable</option>
-                <option value="4">4 - Solid</option>
-                <option value="3">3 - Moderate Roll</option>
-                <option value="2">2 - Uncomfortable</option>
-              </select>
-            </div>
-            <div class="flex items-center gap-2 pt-5">
-              <input type="checkbox" id="form-gold" class="rounded bg-slate-800 border-slate-700 text-amber-400 focus:ring-0 w-4 h-4" />
-              <label for="form-gold" class="text-xs text-slate-300 font-medium">Completed Loop (Gold Looper)</label>
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-xs text-slate-400 mb-1">Your Review & Notes (Clearance, Fuel, Comfort)</label>
-            <textarea id="form-text" required rows="3" placeholder="Antenna needs to be hinged for Chicago bridge. Great walkarounds for Trent-Severn locks..." class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-amber-400"></textarea>
-          </div>
-
-          <button type="submit" id="submit-btn" class="w-full py-2.5 rounded-lg bg-amber-400 text-slate-950 font-bold hover:bg-amber-300 transition-colors">
-            Submit Log Entry
-          </button>
-        </form>
+<Layout title="The Looper Log | Great Loop Community, Vessels & Hazards">
+  <!-- Hero Section -->
+  <section class="relative bg-slate-900 text-white overflow-hidden">
+    <div class="absolute inset-0 opacity-30">
+      <img 
+        src="/hero-loop-map.jpg" 
+        alt="The Looper Log Great Loop Navigation Map" 
+        class="w-full h-full object-cover object-center"
+      />
+    </div>
+    <div class="relative max-w-6xl mx-auto px-4 py-24 sm:py-32 flex flex-col items-center text-center">
+      <span class="inline-block py-1 px-3 mb-4 text-xs font-semibold uppercase tracking-wider bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/40">
+        6,000 Miles • 150+ Locks • One Community
+      </span>
+      <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight max-w-3xl leading-tight">
+        Plan, Cruise, and Connect on America's Great Loop
+      </h1>
+      <p class="mt-6 text-lg sm:text-xl text-slate-300 max-w-2xl leading-relaxed">
+        The centralized hub built by and for Loopers. Search proven vessels with accurate bridge clearances, pin real-time navigation hazards, and exchange knowledge.
+      </p>
+      
+      <div class="mt-8 flex flex-wrap justify-center gap-4">
+        <a href="/map" class="px-6 py-3 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition">
+          View Hazards Map
+        </a>
+        <a href="/boats" class="px-6 py-3 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-white font-semibold border border-slate-700 transition">
+          Search Loop Vessels
+        </a>
+        <a href="/forum" class="px-6 py-3 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-white font-semibold border border-slate-700 transition">
+          Community Forum
+        </a>
       </div>
     </div>
+  </section>
 
-    <!-- Client-side Interactive Filter & Review Logic -->
-    <script>
-      import { supabase } from '../lib/supabase';
+  <!-- Core Hub Feature Cards -->
+  <section class="max-w-6xl mx-auto px-4 py-16">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      
+      <!-- Feature 1: Vessel Finder -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between hover:shadow-md transition">
+        <div>
+          <div class="w-12 h-12 rounded-lg bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xl mb-4">
+            ⚓
+          </div>
+          <h2 class="text-xl font-bold text-slate-900 mb-2">Vessel Directory</h2>
+          <p class="text-slate-600 text-sm leading-relaxed mb-4">
+            Filter trawlers, tugs, and motor yachts that clear the fixed 19.6 ft bridge clearance in Chicago and respect river draft limits.
+          </p>
+        </div>
+        <a href="/boats" class="text-sm font-semibold text-blue-600 hover:text-blue-800">
+          Browse Vessels &rarr;
+        </a>
+      </div>
 
-      // 1. Filtering logic with dropdown make selection
-      const makeFilter = document.getElementById('make-filter') as HTMLSelectElement;
-      const priceFilter = document.getElementById('price-filter') as HTMLSelectElement;
-      const draftFilter = document.getElementById('draft-filter') as HTMLSelectElement;
-      const cards = document.querySelectorAll('.boat-card') as NodeListOf<HTMLElement>;
-      const counter = document.getElementById('listing-counter');
+      <!-- Feature 2: Hazard Map -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between hover:shadow-md transition">
+        <div>
+          <div class="w-12 h-12 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xl mb-4">
+            📍
+          </div>
+          <h2 class="text-xl font-bold text-slate-900 mb-2">Hazard Lookout</h2>
+          <p class="text-slate-600 text-sm leading-relaxed mb-4">
+            Community-sourced navigational alerts: mark shifting shoals, deadhead logs, lock maintenance closures, and low bridges in real time.
+          </p>
+        </div>
+        <a href="/map" class="text-sm font-semibold text-amber-600 hover:text-amber-800">
+          Explore the Map &rarr;
+        </a>
+      </div>
 
-      function filterBoats() {
-        const selectedMake = makeFilter.value.toLowerCase().trim();
-        const maxPrice = priceFilter.value === 'all' ? Infinity : Number(priceFilter.value);
-        const maxDraft = draftFilter.value === 'all' ? Infinity : Number(draftFilter.value);
+      <!-- Feature 3: Community Forum -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between hover:shadow-md transition">
+        <div>
+          <div class="w-12 h-12 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xl mb-4">
+            💬
+          </div>
+          <h2 class="text-xl font-bold text-slate-900 mb-2">Cruiser Exchange</h2>
+          <p class="text-slate-600 text-sm leading-relaxed mb-4">
+            Connect with planners, in-progress cruisers, and Gold Loopers. Share anchorage coordinates, fuel stops, and weather strategies.
+          </p>
+        </div>
+        <a href="/forum" class="text-sm font-semibold text-emerald-600 hover:text-emerald-800">
+          Join the Discussion &rarr;
+        </a>
+      </div>
 
-        let visibleCount = 0;
-
-        cards.forEach((card) => {
-          const title = card.getAttribute('data-title') || '';
-          const price = Number(card.getAttribute('data-price') || 0);
-          const airDraft = Number(card.getAttribute('data-air-draft') || 99);
-
-          const matchesMake = selectedMake === 'all' || title.includes(selectedMake);
-          const matchesPrice = price <= maxPrice;
-          const matchesDraft = draftFilter.value === 'all' || airDraft <= maxDraft;
-
-          if (matchesMake && matchesPrice && matchesDraft) {
-            card.style.display = 'flex';
-            visibleCount++;
-          } else {
-            card.style.display = 'none';
-          }
-        });
-
-        if (counter) {
-          counter.textContent = `Showing ${visibleCount} Loop-capable boats monitored`;
-        }
-      }
-
-      makeFilter.addEventListener('change', filterBoats);
-      priceFilter.addEventListener('change', filterBoats);
-      draftFilter.addEventListener('change', filterBoats);
-
-      // 2. Modal open/close
-      const modal = document.getElementById('review-modal') as HTMLElement;
-      const openBtn1 = document.getElementById('open-review-modal-btn');
-      const openBtn2 = document.getElementById('open-review-modal-btn-2');
-      const closeBtn = document.getElementById('close-modal-btn');
-
-      const openModal = () => modal.classList.remove('hidden');
-      const closeModal = () => modal.classList.add('hidden');
-
-      openBtn1?.addEventListener('click', openModal);
-      openBtn2?.addEventListener('click', openModal);
-      closeBtn?.addEventListener('click', closeModal);
-
-      // 3. Review form submit to Supabase
-      const form = document.getElementById('review-form') as HTMLFormElement;
-      const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
-
-      form?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Saving...';
-
-        const name = (document.getElementById('form-name') as HTMLInputElement).value;
-        const rating = Number((document.getElementById('form-rating') as HTMLSelectElement).value);
-        const lock = Number((document.getElementById('form-lock') as HTMLSelectElement).value);
-        const rough = Number((document.getElementById('form-rough') as HTMLSelectElement).value);
-        const isGold = (document.getElementById('form-gold') as HTMLInputElement).checked;
-        const text = (document.getElementById('form-text') as HTMLTextAreaElement).value;
-
-        const { error } = await supabase.from('boat_reviews').insert({
-          author_name: name,
-          overall_rating: rating,
-          lock_handling_rating: lock,
-          rough_water_rating: rough,
-          is_gold_looper: isGold,
-          review_text: text,
-        });
-
-        if (error) {
-          alert('Error saving review: ' + error.message);
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Submit Log Entry';
-        } else {
-          alert('Thank you! Your experience log has been posted.');
-          closeModal();
-          window.location.reload();
-        }
-      });
-    </script>
-  </body>
-</html>
+    </div>
+  </section>
+</Layout>
