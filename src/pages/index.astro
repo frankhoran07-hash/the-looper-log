@@ -1,132 +1,144 @@
 ---
-import '../../styles/global.css';
-import { supabase } from '../../lib/supabase';
+import { createClient } from '@supabase/supabase-js';
 
-let boats = [];
-try {
-  const { data, error } = await supabase
-    .from('vessels')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (!error && data) {
-    boats = data;
-  }
-} catch (e) {
-  console.error('Error fetching vessels:', e);
-}
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || import.meta.env.SUPABASE_URL;
+const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY;
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Fetch all discussion topics
+const { data: topics, error: topicsError } = await supabase
+  .from('forum_topics')
+  .select('id, title, slug, description, category, created_at')
+  .order('created_at', { ascending: false });
+
+// Fetch counts for approved comments
+const { data: comments, error: commentsError } = await supabase
+  .from('forum_comments')
+  .select('topic_slug')
+  .eq('approved', true);
+
+const commentCountMap = (comments || []).reduce((acc, c) => {
+  acc[c.topic_slug] = (acc[c.topic_slug] || 0) + 1;
+  return acc;
+}, {} as Record<string, number>);
 ---
 
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Great Loop Vessels Directory | The Looper Log</title>
-  </head>
-  <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
-
-    <!-- Header Navigation -->
-    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-        <a href="/" class="flex items-center gap-2 text-amber-400 font-extrabold text-xl tracking-wide">
-          <span>⚓</span>
-          <span>The Looper Log</span>
-        </a>
-        <nav class="flex items-center gap-6 text-sm font-semibold">
-          <a href="/boats" class="text-amber-400">Vessels</a>
-          <a href="/clearance" class="text-slate-300 hover:text-amber-400 transition-colors">Clearance Checker</a>
-          <a href="/map" class="text-slate-300 hover:text-amber-400 transition-colors">Hazard Map</a>
-        </nav>
-      </div>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Community Discussions | The Looper Log</title>
+  <style>
+    :root {
+      --primary: #0f172a;
+      --accent: #0284c7;
+      --card-bg: #ffffff;
+      --bg-alt: #f8fafc;
+      --border: #e2e8f0;
+      --text: #334155;
+      --text-muted: #64748b;
+    }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-alt);
+      color: var(--text);
+    }
+    .container {
+      max-width: 900px;
+      margin: 2rem auto;
+      padding: 0 1.25rem;
+    }
+    header {
+      margin-bottom: 2.5rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 1.5rem;
+    }
+    h1 {
+      color: var(--primary);
+      margin: 0 0 0.5rem 0;
+      font-size: 2rem;
+    }
+    p.subtitle {
+      color: var(--text-muted);
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    .topic-list {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .topic-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      display: block;
+    }
+    .topic-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    }
+    .topic-card h2 {
+      margin: 0 0 0.35rem 0;
+      color: var(--primary);
+      font-size: 1.25rem;
+    }
+    .topic-desc {
+      margin: 0 0 0.75rem 0;
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.4;
+    }
+    .meta {
+      display: flex;
+      gap: 1rem;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      align-items: center;
+    }
+    .badge {
+      background: #e0f2fe;
+      color: #0369a1;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      font-weight: 500;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Community Discussions</h1>
+      <p class="subtitle">Ask questions, share updates, and connect with fellow Great Loopers.</p>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-grow w-full">
-      
-      <!-- Top Headline -->
-      <div class="mb-8">
-        <h1 class="text-3xl sm:text-4xl font-extrabold text-white">Loop Vessels Directory</h1>
-        <p class="text-slate-400 text-sm mt-1">
-          Showing {boats.length} loop-capable boats monitored across major listings.
-        </p>
-      </div>
-
-      <!-- Critical Bottlenecks Banner -->
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 rounded-xl bg-slate-900/80 border border-slate-800 mb-10">
-        <div>
-          <span class="text-xs uppercase text-slate-400 font-bold block">Bridge Bottleneck</span>
-          <span class="text-xl font-extrabold text-amber-400">19' 6"</span>
-          <span class="text-xs text-slate-500 block">Chicago / Lemont Bridge</span>
-        </div>
-        <div>
-          <span class="text-xs uppercase text-slate-400 font-bold block">Max Water Draft</span>
-          <span class="text-xl font-extrabold text-amber-400">5' 0"</span>
-          <span class="text-xs text-slate-500 block">Canals & River Shallows</span>
-        </div>
-        <div>
-          <span class="text-xs uppercase text-slate-400 font-bold block">Champlain Canal</span>
-          <span class="text-xl font-extrabold text-amber-400">15' 6"</span>
-          <span class="text-xs text-slate-500 block">Fixed bridges northward</span>
-        </div>
-        <div>
-          <span class="text-xs uppercase text-slate-400 font-bold block">Erie Canal (Eastern)</span>
-          <span class="text-xl font-extrabold text-amber-400">21' 0"</span>
-          <span class="text-xs text-slate-500 block">Waterford to Oswego cut</span>
-        </div>
-      </div>
-
-      <!-- Vessels Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {boats.map((boat) => (
-          <div class="bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col justify-between hover:border-slate-700 transition-colors">
-            <div>
-              <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-semibold px-2.5 py-0.5 rounded bg-slate-800 text-slate-300 uppercase">
-                  {boat.source || 'Listing'}
-                </span>
-                <span class="text-lg font-bold text-amber-400">
-                  {boat.price ? `$${Number(boat.price).toLocaleString()} USD` : 'Inquire'}
-                </span>
-              </div>
-
-              <h2 class="text-lg font-bold text-white mb-3 line-clamp-1">
-                {boat.year ? `${boat.year} ` : ''}{boat.title || boat.make_model}
-              </h2>
-
-              <div class="grid grid-cols-3 gap-2 py-3 border-y border-slate-800/80 text-xs mb-4">
-                <div>
-                  <span class="text-slate-500 block">Air Draft</span>
-                  <span class="font-semibold text-slate-200">{boat.air_draft ? `${boat.air_draft} ft` : 'N/A'}</span>
-                </div>
-                <div>
-                  <span class="text-slate-500 block">Water Draft</span>
-                  <span class="font-semibold text-slate-200">{boat.draft ? `${boat.draft} ft` : 'N/A'}</span>
-                </div>
-                <div>
-                  <span class="text-slate-500 block">Length</span>
-                  <span class="font-semibold text-slate-200">{boat.length ? `${boat.length} ft` : 'N/A'}</span>
-                </div>
-              </div>
+    <main class="topic-list">
+      {topics && topics.length > 0 ? (
+        topics.map((t) => (
+          <a href={`/community/${t.slug}`} class="topic-card">
+            <span class="badge">{t.category || 'General'}</span>
+            <h2>{t.title}</h2>
+            {t.description && <p class="topic-desc">{t.description}</p>}
+            <div class="meta">
+              <span>{commentCountMap[t.slug] || 0} Comments</span>
             </div>
-
-            <div class="flex items-center justify-between pt-2">
-              <span class="text-xs text-slate-500">
-                {boat.location || 'USA'}
-              </span>
-              <a 
-                href={`/boats/${boat.id}`} 
-                class="text-xs font-bold px-3 py-2 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors"
-              >
-                View Specs &rarr;
-              </a>
-            </div>
-          </div>
-        ))}
-      </div>
+          </a>
+        ))
+      ) : (
+        <p>No discussion topics available yet.</p>
+      )}
     </main>
-
-    <footer class="border-t border-slate-800 bg-slate-900 py-8 text-center text-xs text-slate-500">
-      <p>© 2026 The Looper Log. Built for America's Great Loop cruisers.</p>
-    </footer>
-
-  </body>
+  </div>
+</body>
 </html>
