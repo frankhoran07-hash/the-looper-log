@@ -1,0 +1,185 @@
+---
+import '../styles/global.css';
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Great Loop Route Clearance Checker | The Looper Log</title>
+  </head>
+  <body class="bg-slate-900 text-slate-100 min-h-screen">
+    <header class="border-b border-slate-800 bg-slate-950/80 sticky top-0 z-40 backdrop-blur">
+      <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-3 hover:opacity-90 transition-opacity">
+          <span class="text-2xl">⚓</span>
+          <div>
+            <h1 class="text-xl font-bold tracking-tight text-amber-400">The Looper Log</h1>
+            <p class="text-xs text-slate-400">Back to Vessel Market</p>
+          </div>
+        </a>
+        <div class="flex items-center gap-4 text-sm font-medium">
+          <a href="/" class="hover:text-amber-400 transition-colors">Vessels</a>
+          <a href="/clearance" class="text-amber-400">Clearance Checker</a>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-4xl mx-auto px-4 py-10">
+      <div class="text-center mb-10">
+        <h2 class="text-3xl font-extrabold text-slate-100">Interactive Loop Clearance Checker</h2>
+        <p class="text-slate-400 text-sm mt-2 max-w-xl mx-auto">
+          Enter your vessel's exact air draft and water draft to simulate passage through every major Great Loop bottleneck and canal constraint.
+        </p>
+      </div>
+
+      <!-- Dimension Input Card -->
+      <div class="bg-slate-800/40 border border-slate-700/60 rounded-2xl p-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+              Air Draft (Feet)
+            </label>
+            <div class="flex items-center gap-3">
+              <input 
+                type="number" 
+                id="input-air-draft" 
+                step="0.1" 
+                min="5" 
+                max="35" 
+                value="16.5" 
+                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-lg font-bold text-amber-400 focus:outline-none focus:border-amber-400"
+              />
+              <span class="text-slate-400 text-sm font-medium">ft</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">Waterline to top of fixed arch/mast (antennas down)</p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+              Water Draft (Feet)
+            </label>
+            <div class="flex items-center gap-3">
+              <input 
+                type="number" 
+                id="input-water-draft" 
+                step="0.1" 
+                min="1" 
+                max="10" 
+                value="4.0" 
+                class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-lg font-bold text-amber-400 focus:outline-none focus:border-amber-400"
+              />
+              <span class="text-slate-400 text-sm font-medium">ft</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">Loaded depth including keel, props & rudder</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Clearance Checkpoints Results -->
+      <div class="space-y-4" id="checkpoints-list">
+        <!-- Rendered via JS -->
+      </div>
+    </main>
+
+    <script>
+      const airInput = document.getElementById('input-air-draft') as HTMLInputElement;
+      const waterInput = document.getElementById('input-water-draft') as HTMLInputElement;
+      const container = document.getElementById('checkpoints-list') as HTMLElement;
+
+      const bottlenecks = [
+        {
+          name: "Chicago Sanitary & Ship Canal (Lemont Bridge)",
+          limitType: "air",
+          limitValue: 19.5,
+          mandatory: true,
+          description: "The absolute fixed bridge restriction for the entire Great Loop. If you cannot get under 19' 6\", you cannot complete the traditional Loop without unstepping arches.",
+          bypassNote: "No bypass exists once past Chicago. Must drop arch, bimini, or mast."
+        },
+        {
+          name: "Champlain Canal (Hudson to Lake Champlain)",
+          limitType: "air",
+          limitValue: 15.5,
+          mandatory: false,
+          description: "Lowest fixed bridge on the scenic northbound route into Montreal/Quebec.",
+          bypassNote: "If over 15' 6\", take the Erie Canal to Oswego, then enter Lake Ontario."
+        },
+        {
+          name: "Western Erie Canal (Three Rivers to Buffalo)",
+          limitType: "air",
+          limitValue: 15.5,
+          mandatory: false,
+          description: "Fixed bridges limit access across the western section directly into Lake Erie.",
+          bypassNote: "Bypass by branching north at Oswego Lock 8 into Lake Ontario and through the Welland Canal or Trent-Severn."
+        },
+        {
+          name: "Eastern Erie Canal / Oswego Canal Cut",
+          limitType: "air",
+          limitValue: 21.0,
+          mandatory: false,
+          description: "Fixed bridge clearances between Waterford and Lock 23/Three Rivers.",
+          bypassNote: "Standard route for taller trawlers under 19' 6\"."
+        },
+        {
+          name: "Trent-Severn Waterway Locks & Marine Railway",
+          limitType: "water",
+          limitValue: 5.0,
+          mandatory: false,
+          description: "Minimum draft channel maintained through Ontario's canal system. Big Chute Marine railway also has weight/beam restrictions.",
+          bypassNote: "Boats drawing over 5' 0\" should stay in Lake Ontario and route via the Welland Canal or St. Lawrence."
+        },
+        {
+          name: "Dismal Swamp Canal (ICW Route)",
+          limitType: "water",
+          limitValue: 5.0,
+          mandatory: false,
+          description: "Shallow peat bottom canal alternate route off Norfolk, VA.",
+          bypassNote: "If drawing over 5' 0\", use the Virginia Cut (Albemarle & Chesapeake Canal) with 9-12ft depth."
+        }
+      ];
+
+      function evaluateCheckpoints() {
+        const air = parseFloat(airInput.value) || 0;
+        const water = parseFloat(waterInput.value) || 0;
+
+        container.innerHTML = bottlenecks.map(b => {
+          const val = b.limitType === 'air' ? air : water;
+          const passes = val <= b.limitValue;
+          const statusColor = passes 
+            ? 'border-emerald-500/50 bg-emerald-950/20 text-emerald-300' 
+            : b.mandatory 
+              ? 'border-rose-500/60 bg-rose-950/20 text-rose-300' 
+              : 'border-amber-500/50 bg-amber-950/20 text-amber-300';
+          
+          const badgeText = passes 
+            ? '✓ CLEARED' 
+            : b.mandatory 
+              ? '✕ BLOCKED (NO BYPASS)' 
+              : '⚠ BYPASS REQUIRED';
+
+          return `
+            <div class="border rounded-xl p-5 ${statusColor} transition-all">
+              <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-2">
+                <h4 class="font-bold text-base text-slate-100">${b.name}</h4>
+                <span class="text-xs font-black uppercase tracking-wider px-2.5 py-1 rounded bg-slate-900/80 border border-current">
+                  ${badgeText}
+                </span>
+              </div>
+              <p class="text-xs text-slate-300 mb-2">${b.description}</p>
+              <div class="flex items-center gap-4 text-xs font-semibold text-slate-400 border-t border-slate-800/80 pt-2.5">
+                <span>Limit: <strong class="text-slate-200">${b.limitValue}'</strong> ${b.limitType === 'air' ? 'Air Draft' : 'Water Draft'}</span>
+                <span>Your Vessel: <strong class="text-slate-200">${val}'</strong></span>
+                ${!passes ? `<span class="italic text-amber-300/90">${b.bypassNote}</span>` : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      airInput.addEventListener('input', evaluateCheckpoints);
+      waterInput.addEventListener('input', evaluateCheckpoints);
+      evaluateCheckpoints();
+    </script>
+  </body>
+</html>
