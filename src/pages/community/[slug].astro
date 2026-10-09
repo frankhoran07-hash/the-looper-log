@@ -1,7 +1,17 @@
 ---
 import { createClient } from '@supabase/supabase-js';
 
-export const prerender = false;
+export async function getStaticPaths() {
+  const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || import.meta.env.SUPABASE_URL;
+  const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY;
+  const supabase = createClient(supabaseUrl, supabaseKey);
+
+  const { data: topics } = await supabase.from('forum_topics').select('slug');
+
+  return (topics || []).map((t) => ({
+    params: { slug: t.slug },
+  }));
+}
 
 const { slug } = Astro.params;
 
@@ -9,20 +19,11 @@ const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || import.meta.env.SUPAB
 const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Fetch topic details
 const { data: topic } = await supabase
   .from('forum_topics')
   .select('*')
   .eq('slug', slug)
   .single();
-
-// Fetch approved comments for this topic
-const { data: comments } = await supabase
-  .from('forum_comments')
-  .select('*')
-  .eq('topic_slug', slug)
-  .eq('approved', true)
-  .order('created_at', { ascending: true });
 ---
 
 <!DOCTYPE html>
@@ -163,23 +164,10 @@ const { data: comments } = await supabase
       </header>
 
       <section class="comments-section">
-        <h2>Replies ({comments ? comments.length : 0})</h2>
-        {comments && comments.length > 0 ? (
-          comments.map((c) => (
-            <div class="comment-card">
-              <div class="comment-meta">
-                <span class="author-info">
-                  {c.author_name}
-                  {c.boat_name && <span class="boat-name">• {c.boat_name}</span>}
-                </span>
-                <span>{new Date(c.created_at).toLocaleDateString()}</span>
-              </div>
-              <p style="margin: 0; line-height: 1.5;">{c.comment_text}</p>
-            </div>
-          ))
-        ) : (
-          <p style="color: var(--text-muted);">No replies yet. Start the conversation below!</p>
-        )}
+        <h2 id="replies-count">Replies</h2>
+        <div id="comments-container">
+          <p style="color: var(--text-muted);">Loading replies...</p>
+        </div>
       </section>
 
       <section class="form-box">
@@ -214,9 +202,55 @@ const { data: comments } = await supabase
   </div>
 
   <script define:vars={{ slug, supabaseUrl, supabaseKey }}>
+    const commentsContainer = document.getElementById('comments-container');
+    const repliesCount = document.getElementById('replies-count');
     const form = document.getElementById('comment-form');
     const statusBox = document.getElementById('status-box');
     const submitBtn = document.getElementById('submit-btn');
+
+    async function loadComments() {
+      try {
+        const res = await fetch(
+          `${supabaseUrl}/rest/v1/forum_comments?topic_slug=eq.${slug}&approved=eq.true&order=created_at.asc`,
+          {
+            headers: {
+              'apikey': supabaseKey,
+              'Authorization': `Bearer ${supabaseKey}`
+            }
+          }
+        );
+        const data = await res.json();
+        
+        repliesCount.innerText = `Replies (${data.length})`;
+
+        if (!data || data.length === 0) {
+          commentsContainer.innerHTML = '<p style="color: var(--text-muted);">No replies yet. Start the conversation below!</p>';
+          return;
+        }
+
+        commentsContainer.innerHTML = data.map(c => `
+          <div class="comment-card">
+            <div class="comment-meta">
+              <span class="author-info">
+                ${escapeHtml(c.author_name)}
+                ${c.boat_name ? `<span class="boat-name">• ${escapeHtml(c.boat_name)}</span>` : ''}
+              </span>
+              <span>${new Date(c.created_at).toLocaleDateString()}</span>
+            </div>
+            <p style="margin: 0; line-height: 1.5;">${escapeHtml(c.comment_text)}</p>
+          </div>
+        `).join('');
+      } catch (err) {
+        commentsContainer.innerHTML = '<p style="color: var(--text-muted);">Failed to load comments.</p>';
+      }
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    }
+
+    loadComments();
 
     if (form) {
       form.addEventListener('submit', async (e) => {
