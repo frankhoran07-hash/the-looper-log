@@ -1,144 +1,120 @@
 ---
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || import.meta.env.SUPABASE_URL;
-const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY;
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Fetch all discussion topics
-const { data: topics, error: topicsError } = await supabase
-  .from('forum_topics')
-  .select('id, title, slug, description, category, created_at')
-  .order('created_at', { ascending: false });
-
-// Fetch counts for approved comments
-const { data: comments, error: commentsError } = await supabase
-  .from('forum_comments')
-  .select('topic_slug')
-  .eq('approved', true);
-
-const commentCountMap = (comments || []).reduce((acc, c) => {
-  acc[c.topic_slug] = (acc[c.topic_slug] || 0) + 1;
-  return acc;
-}, {} as Record<string, number>);
+import '../styles/global.css';
 ---
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Community Discussions | The Looper Log</title>
-  <style>
-    :root {
-      --primary: #0f172a;
-      --accent: #0284c7;
-      --card-bg: #ffffff;
-      --bg-alt: #f8fafc;
-      --border: #e2e8f0;
-      --text: #334155;
-      --text-muted: #64748b;
-    }
-    body {
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: var(--bg-alt);
-      color: var(--text);
-    }
-    .container {
-      max-width: 900px;
-      margin: 2rem auto;
-      padding: 0 1.25rem;
-    }
-    header {
-      margin-bottom: 2.5rem;
-      border-bottom: 1px solid var(--border);
-      padding-bottom: 1.5rem;
-    }
-    h1 {
-      color: var(--primary);
-      margin: 0 0 0.5rem 0;
-      font-size: 2rem;
-    }
-    p.subtitle {
-      color: var(--text-muted);
-      margin: 0;
-      font-size: 1.1rem;
-    }
-    .topic-list {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-    }
-    .topic-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 1.25rem 1.5rem;
-      text-decoration: none;
-      color: inherit;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
-      display: block;
-    }
-    .topic-card:hover {
-      border-color: var(--accent);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    }
-    .topic-card h2 {
-      margin: 0 0 0.35rem 0;
-      color: var(--primary);
-      font-size: 1.25rem;
-    }
-    .topic-desc {
-      margin: 0 0 0.75rem 0;
-      color: var(--text-muted);
-      font-size: 0.95rem;
-      line-height: 1.4;
-    }
-    .meta {
-      display: flex;
-      gap: 1rem;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      align-items: center;
-    }
-    .badge {
-      background: #e0f2fe;
-      color: #0369a1;
-      padding: 0.2rem 0.5rem;
-      border-radius: 4px;
-      font-weight: 500;
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <header>
-      <h1>Community Discussions</h1>
-      <p class="subtitle">Ask questions, share updates, and connect with fellow Great Loopers.</p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Looper Log | Great Loop Community, Vessels & Hazards</title>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+
+    <!-- Header Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-2 text-amber-400 font-extrabold text-xl tracking-wide">
+          <span>⚓</span>
+          <span>The Looper Log</span>
+        </a>
+        <nav class="flex items-center gap-6 text-sm font-semibold">
+          <a href="/boats" class="text-slate-300 hover:text-amber-400 transition-colors">Vessels</a>
+          <a href="/clearance" class="text-slate-300 hover:text-amber-400 transition-colors">Clearance Checker</a>
+          <a href="/map" class="text-slate-300 hover:text-amber-400 transition-colors">Hazard Map</a>
+        </nav>
+      </div>
     </header>
 
-    <main class="topic-list">
-      {topics && topics.length > 0 ? (
-        topics.map((t) => (
-          <a href={`/community/${t.slug}`} class="topic-card">
-            <span class="badge">{t.category || 'General'}</span>
-            <h2>{t.title}</h2>
-            {t.description && <p class="topic-desc">{t.description}</p>}
-            <div class="meta">
-              <span>{commentCountMap[t.slug] || 0} Comments</span>
-            </div>
+    <!-- Hero Section -->
+    <section class="relative bg-slate-900 text-white overflow-hidden border-b border-slate-800">
+      <div class="absolute inset-0 opacity-25">
+        <img 
+          src="/hero-loop-map.jpg" 
+          alt="The Looper Log Great Loop Navigation Map" 
+          class="w-full h-full object-cover object-center"
+        />
+      </div>
+      <div class="relative max-w-5xl mx-auto px-4 py-20 sm:py-28 flex flex-col items-center text-center">
+        <span class="inline-block py-1 px-3 mb-4 text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 rounded-full border border-amber-500/40">
+          6,000 Miles • 150+ Locks • Cruiser Community
+        </span>
+        <h1 class="text-4xl sm:text-6xl font-black tracking-tight max-w-4xl leading-tight">
+          Plan, Cruise, and Connect on America's Great Loop
+        </h1>
+        <p class="mt-6 text-lg sm:text-xl text-slate-300 max-w-2xl leading-relaxed">
+          The centralized hub built by and for Loopers. Search verified vessels with bridge clearance checks, track live navigational hazards, and share knowledge from the helm.
+        </p>
+        
+        <div class="mt-8 flex flex-wrap justify-center gap-4">
+          <a href="/map" class="px-6 py-3.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold transition-colors shadow-lg">
+            Explore Hazard Map
           </a>
-        ))
-      ) : (
-        <p>No discussion topics available yet.</p>
-      )}
+          <a href="/boats" class="px-6 py-3.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold border border-slate-700 transition-colors">
+            Search Loop Vessels
+          </a>
+          <a href="/clearance" class="px-6 py-3.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-semibold border border-slate-700 transition-colors">
+            Clearance Checker
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Hub Feature Cards -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 flex-grow w-full">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-between hover:border-slate-700 transition-colors">
+          <div>
+            <div class="w-12 h-12 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-2xl mb-4">
+              ⚓
+            </div>
+            <h2 class="text-xl font-bold text-white mb-2">Vessel Directory</h2>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Filter loop-ready trawlers, motor yachts, and tugs vetted against fixed bridge obstacles (19.6 ft in Chicago) and inland draft depth restrictions.
+            </p>
+          </div>
+          <a href="/boats" class="text-sm font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1">
+            Browse Vessels <span>&rarr;</span>
+          </a>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-between hover:border-slate-700 transition-colors">
+          <div>
+            <div class="w-12 h-12 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center font-bold text-2xl mb-4">
+              📍
+            </div>
+            <h2 class="text-xl font-bold text-white mb-2">Hazard Lookout Map</h2>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Crowdsourced warnings from the helm: track shifting shoals, deadheads, lock repairs, and temporary bridge air-draft limitations.
+            </p>
+          </div>
+          <a href="/map" class="text-sm font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1">
+            View Live Alerts <span>&rarr;</span>
+          </a>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-xl p-6 flex flex-col justify-between hover:border-slate-700 transition-colors">
+          <div>
+            <div class="w-12 h-12 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-2xl mb-4">
+              📏
+            </div>
+            <h2 class="text-xl font-bold text-white mb-2">Clearance Calculator</h2>
+            <p class="text-slate-400 text-sm leading-relaxed mb-6">
+              Test any boat dimensions against the fixed bottlenecks along the loop: Lemont Bridge (19' 6"), Champlain Canal (15' 6"), and eastern Erie Canal (21' 0").
+            </p>
+          </div>
+          <a href="/clearance" class="text-sm font-semibold text-amber-400 hover:text-amber-300 flex items-center gap-1">
+            Calculate Clearance <span>&rarr;</span>
+          </a>
+        </div>
+
+      </div>
     </main>
-  </div>
-</body>
+
+    <footer class="border-t border-slate-800 bg-slate-900 py-8 text-center text-xs text-slate-500">
+      <p>© 2026 The Looper Log. Built for America's Great Loop cruisers.</p>
+    </footer>
+
+  </body>
 </html>
