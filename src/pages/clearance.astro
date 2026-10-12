@@ -1,4 +1,6 @@
 ---
+export const prerender = true;
+
 import '../styles/global.css';
 ---
 
@@ -28,7 +30,7 @@ import '../styles/global.css';
     <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <a href="/" class="flex items-center gap-2 text-amber-400 font-extrabold text-xl tracking-wide">
-          <span>&#9875;</span>
+          <span>⚓</span>
           <span>The Looper Log</span>
         </a>
         <nav class="flex items-center gap-6 text-sm font-semibold">
@@ -186,115 +188,117 @@ import '../styles/global.css';
     </footer>
 
     <script is:inline>
-      const airInput = document.getElementById('input-air');
-      const waterInput = document.getElementById('input-water');
-      const beamInput = document.getElementById('input-beam');
+      document.addEventListener('DOMContentLoaded', () => {
+        const airInput = document.getElementById('input-air');
+        const waterInput = document.getElementById('input-water');
+        const beamInput = document.getElementById('input-beam');
 
-      function setBadge(el, state, text) {
-        if (!el) return;
-        el.textContent = text;
-        el.className = 'status-badge font-bold px-3 py-1 rounded text-xs';
-        
-        if (state === 'pass') {
-          el.classList.add('bg-emerald-950', 'text-emerald-400', 'border', 'border-emerald-800');
-        } else if (state === 'warn') {
-          el.classList.add('bg-amber-950', 'text-amber-400', 'border', 'border-amber-800');
-        } else if (state === 'fail') {
-          el.classList.add('bg-rose-950', 'text-rose-400', 'border', 'border-rose-800');
-        } else {
-          el.classList.add('bg-slate-800', 'text-slate-400');
-        }
-      }
-
-      function evaluateClearances() {
-        const air = parseFloat(airInput.value);
-        const water = parseFloat(waterInput.value);
-        const beam = parseFloat(beamInput.value);
-
-        // Chicago (19.5 max)
-        const badgeChicago = document.getElementById('badge-chicago');
-        if (!isNaN(air)) {
-          if (air <= 19.5) {
-            setBadge(badgeChicago, 'pass', `CLEAR (${(19.5 - air).toFixed(1)}' margin)`);
+        function setBadge(el, state, text) {
+          if (!el) return;
+          el.textContent = text;
+          el.className = 'status-badge font-bold px-3 py-1 rounded text-xs';
+          
+          if (state === 'pass') {
+            el.classList.add('bg-emerald-950', 'text-emerald-400', 'border', 'border-emerald-800');
+          } else if (state === 'warn') {
+            el.classList.add('bg-amber-950', 'text-amber-400', 'border', 'border-amber-800');
+          } else if (state === 'fail') {
+            el.classList.add('bg-rose-950', 'text-rose-400', 'border', 'border-rose-800');
           } else {
-            setBadge(badgeChicago, 'fail', `EXCEEDED (+${(air - 19.5).toFixed(1)}' over)`);
+            el.classList.add('bg-slate-800', 'text-slate-400');
           }
-        } else {
-          setBadge(badgeChicago, 'neutral', 'Awaiting Air Draft');
         }
 
-        // Champlain (15.5 max)
-        const badgeChamplain = document.getElementById('badge-champlain');
-        if (!isNaN(air)) {
-          if (air <= 15.5) {
-            setBadge(badgeChamplain, 'pass', `CLEAR (${(15.5 - air).toFixed(1)}' margin)`);
-          } else if (air <= 19.0) {
-            setBadge(badgeChamplain, 'warn', `REQUIRES DROP (+${(air - 15.5).toFixed(1)}')`);
+        function evaluateClearances() {
+          const air = parseFloat(airInput.value);
+          const water = parseFloat(waterInput.value);
+          const beam = parseFloat(beamInput.value);
+
+          // Chicago (19.5 max)
+          const badgeChicago = document.getElementById('badge-chicago');
+          if (!isNaN(air)) {
+            if (air <= 19.5) {
+              setBadge(badgeChicago, 'pass', `CLEAR (${(19.5 - air).toFixed(1)}' margin)`);
+            } else {
+              setBadge(badgeChicago, 'fail', `EXCEEDED (+${(air - 19.5).toFixed(1)}' over)`);
+            }
           } else {
-            setBadge(badgeChamplain, 'fail', `EXCEEDED (+${(air - 15.5).toFixed(1)}' over)`);
+            setBadge(badgeChicago, 'neutral', 'Awaiting Air Draft');
           }
-        } else {
-          setBadge(badgeChamplain, 'neutral', 'Awaiting Air Draft');
-        }
 
-        // Erie to Oswego (21.0 max)
-        const badgeErieOswego = document.getElementById('badge-erie-oswego');
-        if (!isNaN(air)) {
-          if (air <= 21.0) {
-            setBadge(badgeErieOswego, 'pass', `CLEAR (${(21.0 - air).toFixed(1)}' margin)`);
+          // Champlain (15.5 max)
+          const badgeChamplain = document.getElementById('badge-champlain');
+          if (!isNaN(air)) {
+            if (air <= 15.5) {
+              setBadge(badgeChamplain, 'pass', `CLEAR (${(15.5 - air).toFixed(1)}' margin)`);
+            } else if (air <= 19.0) {
+              setBadge(badgeChamplain, 'warn', `REQUIRES DROP (+${(air - 15.5).toFixed(1)}')`);
+            } else {
+              setBadge(badgeChamplain, 'fail', `EXCEEDED (+${(air - 15.5).toFixed(1)}' over)`);
+            }
           } else {
-            setBadge(badgeErieOswego, 'fail', `EXCEEDED (+${(air - 21.0).toFixed(1)}' over)`);
+            setBadge(badgeChamplain, 'neutral', 'Awaiting Air Draft');
           }
-        } else {
-          setBadge(badgeErieOswego, 'neutral', 'Awaiting Air Draft');
-        }
 
-        // Western Erie (15.5 max)
-        const badgeErieWest = document.getElementById('badge-erie-west');
-        if (!isNaN(air)) {
-          if (air <= 15.5) {
-            setBadge(badgeErieWest, 'pass', `CLEAR (${(15.5 - air).toFixed(1)}' margin)`);
+          // Erie to Oswego (21.0 max)
+          const badgeErieOswego = document.getElementById('badge-erie-oswego');
+          if (!isNaN(air)) {
+            if (air <= 21.0) {
+              setBadge(badgeErieOswego, 'pass', `CLEAR (${(21.0 - air).toFixed(1)}' margin)`);
+            } else {
+              setBadge(badgeErieOswego, 'fail', `EXCEEDED (+${(air - 21.0).toFixed(1)}' over)`);
+            }
           } else {
-            setBadge(badgeErieWest, 'fail', `EXCEEDED (+${(air - 15.5).toFixed(1)}' over)`);
+            setBadge(badgeErieOswego, 'neutral', 'Awaiting Air Draft');
           }
-        } else {
-          setBadge(badgeErieWest, 'neutral', 'Awaiting Air Draft');
-        }
 
-        // Water Draft (5.0 recommended max)
-        const badgeDraft = document.getElementById('badge-draft');
-        if (!isNaN(water)) {
-          if (water <= 4.0) {
-            setBadge(badgeDraft, 'pass', `EXCELLENT (${water}' draft)`);
-          } else if (water <= 5.0) {
-            setBadge(badgeDraft, 'warn', `MARGINAL (${water}' draft)`);
+          // Western Erie (15.5 max)
+          const badgeErieWest = document.getElementById('badge-erie-west');
+          if (!isNaN(air)) {
+            if (air <= 15.5) {
+              setBadge(badgeErieWest, 'pass', `CLEAR (${(15.5 - air).toFixed(1)}' margin)`);
+            } else {
+              setBadge(badgeErieWest, 'fail', `EXCEEDED (+${(air - 15.5).toFixed(1)}' over)`);
+            }
           } else {
-            setBadge(badgeDraft, 'fail', `HIGH RISK (+${(water - 5.0).toFixed(1)}' shoaling risk)`);
+            setBadge(badgeErieWest, 'neutral', 'Awaiting Air Draft');
           }
-        } else {
-          setBadge(badgeDraft, 'neutral', 'Awaiting Water Draft');
-        }
 
-        // Trent-Severn (4.0 draft max, 23 beam max)
-        const badgeTrent = document.getElementById('badge-trent');
-        if (!isNaN(water) || !isNaN(beam)) {
-          const draftOk = isNaN(water) || water <= 4.0;
-          const beamOk = isNaN(beam) || beam <= 23.0;
-          if (draftOk && beamOk) {
-            setBadge(badgeTrent, 'pass', 'CLEAR');
-          } else if (!draftOk) {
-            setBadge(badgeTrent, 'fail', `DRAFT EXCEEDED (+${(water - 4.0).toFixed(1)}')`);
+          // Water Draft (5.0 recommended max)
+          const badgeDraft = document.getElementById('badge-draft');
+          if (!isNaN(water)) {
+            if (water <= 4.0) {
+              setBadge(badgeDraft, 'pass', `EXCELLENT (${water}' draft)`);
+            } else if (water <= 5.0) {
+              setBadge(badgeDraft, 'warn', `MARGINAL (${water}' draft)`);
+            } else {
+              setBadge(badgeDraft, 'fail', `HIGH RISK (+${(water - 5.0).toFixed(1)}' shoaling risk)`);
+            }
           } else {
-            setBadge(badgeTrent, 'fail', `BEAM EXCEEDED (+${(beam - 23.0).toFixed(1)}')`);
+            setBadge(badgeDraft, 'neutral', 'Awaiting Water Draft');
           }
-        } else {
-          setBadge(badgeTrent, 'neutral', 'Awaiting Dimensions');
-        }
-      }
 
-      airInput?.addEventListener('input', evaluateClearances);
-      waterInput?.addEventListener('input', evaluateClearances);
-      beamInput?.addEventListener('input', evaluateClearances);
+          // Trent-Severn (4.0 draft max, 23 beam max)
+          const badgeTrent = document.getElementById('badge-trent');
+          if (!isNaN(water) || !isNaN(beam)) {
+            const draftOk = isNaN(water) || water <= 4.0;
+            const beamOk = isNaN(beam) || beam <= 23.0;
+            if (draftOk && beamOk) {
+              setBadge(badgeTrent, 'pass', 'CLEAR');
+            } else if (!draftOk) {
+              setBadge(badgeTrent, 'fail', `DRAFT EXCEEDED (+${(water - 4.0).toFixed(1)}')`);
+            } else {
+              setBadge(badgeTrent, 'fail', `BEAM EXCEEDED (+${(beam - 23.0).toFixed(1)}')`);
+            }
+          } else {
+            setBadge(badgeTrent, 'neutral', 'Awaiting Dimensions');
+          }
+        }
+
+        airInput?.addEventListener('input', evaluateClearances);
+        waterInput?.addEventListener('input', evaluateClearances);
+        beamInput?.addEventListener('input', evaluateClearances);
+      });
     </script>
   </body>
 </html>

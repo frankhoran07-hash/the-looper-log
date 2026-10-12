@@ -28,13 +28,32 @@ const CHICAGO_AIR_DRAFT_LIMIT = 19.6;
 const ERIE_AIR_DRAFT_LIMIT = 15.5;
 const DRAFT_LIMIT = 5.0;
 
-const airDraft = model.air_draft_feet ?? 0;
-const draft = model.draft_feet ?? 0;
-const beam = model.beam_feet ?? 0;
+// Handle column names from both boat_models and boat_listings fallbacks
+const airDraft = model.air_draft_feet != null
+  ? parseFloat(model.air_draft_feet)
+  : (parseFloat(boat.air_draft) || 0);
+
+const draft = model.water_draft_feet != null
+  ? parseFloat(model.water_draft_feet)
+  : (parseFloat(boat.draft) || 0);
+
+const beam = model.beam_feet != null
+  ? parseFloat(model.beam_feet)
+  : (parseFloat(boat.beam) || 0);
 
 const passesChicago = airDraft > 0 && airDraft <= CHICAGO_AIR_DRAFT_LIMIT;
 const passesErie = airDraft > 0 && airDraft <= ERIE_AIR_DRAFT_LIMIT;
 const passesDraft = draft > 0 && draft <= DRAFT_LIMIT;
+
+// Title and manufacturer fallback
+const make = model.make || model.manufacturer || '';
+const modelName = model.model_name || model.make_model || '';
+const vesselTitle = boat.title || `${boat.year || ''} ${make} ${modelName}`.trim() || 'Vessel Specs';
+
+// Clean price handling
+const rawPrice = boat.current_asking_price ?? boat.price;
+const numPrice = rawPrice ? parseFloat(String(rawPrice).replace(/[^0-9.]/g, '')) : 0;
+const formattedPrice = numPrice > 0 ? `$${numPrice.toLocaleString()} USD` : 'Contact for Price';
 ---
 
 <!doctype html>
@@ -42,7 +61,7 @@ const passesDraft = draft > 0 && draft <= DRAFT_LIMIT;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{boat.year} {model.manufacturer || ''} {model.model_name || 'Vessel Specs'} | The Looper Log</title>
+    <title>{vesselTitle} | The Looper Log</title>
   </head>
   <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
@@ -74,7 +93,7 @@ const passesDraft = draft > 0 && draft <= DRAFT_LIMIT;
         <div class="lg:col-span-2 space-y-6">
           <div class="rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-xl">
             {boat.image_url ? (
-              <img src={boat.image_url} alt={boat.title || 'Vessel'} class="w-full h-[420px] object-cover" />
+              <img src={boat.image_url} alt={vesselTitle} class="w-full h-[420px] object-cover" />
             ) : (
               <div class="w-full h-[420px] bg-slate-800/60 flex items-center justify-center text-slate-600 text-6xl">
                 ⚓
@@ -84,10 +103,10 @@ const passesDraft = draft > 0 && draft <= DRAFT_LIMIT;
 
           <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-lg">
             <h1 class="text-3xl font-extrabold text-white">
-              {boat.year} {model.manufacturer} {model.model_name}
+              {vesselTitle}
             </h1>
             <p class="text-amber-400 text-2xl font-bold mt-2">
-              {boat.price ? `$${boat.price.toLocaleString()}` : 'Contact for Price'}
+              {formattedPrice}
             </p>
             <p class="text-slate-400 text-sm mt-1">
               📍 Located in {boat.location || 'Location upon request'}
@@ -160,7 +179,7 @@ const passesDraft = draft > 0 && draft <= DRAFT_LIMIT;
                 <dd class="font-semibold text-white">{airDraft ? `${airDraft} ft` : 'N/A'}</dd>
               </div>
               <div class="flex justify-between py-1.5 border-b border-slate-800/60">
-                <dt class="text-slate-400">Draft</dt>
+                <dt class="text-slate-400">Water Draft</dt>
                 <dd class="font-semibold text-white">{draft ? `${draft} ft` : 'N/A'}</dd>
               </div>
               <div class="flex justify-between py-1.5 border-b border-slate-800/60">
@@ -196,7 +215,6 @@ const passesDraft = draft > 0 && draft <= DRAFT_LIMIT;
         </div>
       </div>
     </main>
-    
 
     <footer class="border-t border-slate-800 bg-slate-900 py-6 text-center text-xs text-slate-500">
       <p>© 2026 The Looper Log. Built for America's Great Loop cruisers.</p>

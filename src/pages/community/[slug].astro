@@ -6,24 +6,44 @@ import { supabase } from '../../lib/supabase';
 
 export async function getStaticPaths() {
   try {
-    const { data: posts, error } = await supabase
-      .from('community_posts')
+    // Match the table queried in community/index.astro
+    const { data: topics, error } = await supabase
+      .from('forum_topics')
       .select('*');
 
-    if (error || !posts || posts.length === 0) {
+    if (error || !topics || topics.length === 0) {
+      console.warn("No forum topics found for static paths:", error);
       return [];
     }
 
-    return posts.map((post) => ({
-      params: { slug: post.slug || post.id },
-      props: { post },
+    return topics.map((topic) => ({
+      params: { slug: topic.slug || topic.id },
+      props: { topic },
     }));
   } catch (err) {
+    console.error("Failed to generate community static paths:", err);
     return [];
   }
 }
 
-const { post } = Astro.props;
+const { topic } = Astro.props;
+
+// Fetch any approved comments for this topic at build time
+let comments = [];
+try {
+  const { data, error } = await supabase
+    .from('forum_comments')
+    .select('*')
+    .eq('topic_slug', topic.slug)
+    .eq('approved', true)
+    .order('created_at', { ascending: true });
+
+  if (!error && data) {
+    comments = data;
+  }
+} catch (e) {
+  console.error("Error loading comments:", e);
+}
 ---
 
 <!doctype html>
@@ -31,7 +51,7 @@ const { post } = Astro.props;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{post?.title || 'Community Update'} | The Looper Log</title>
+    <title>{topic?.title || 'Community Topic'} | The Looper Log</title>
   </head>
   <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
@@ -46,43 +66,62 @@ const { post } = Astro.props;
           <a href="/boats" class="text-slate-300 hover:text-amber-400 transition-colors">Vessels</a>
           <a href="/clearance" class="text-slate-300 hover:text-amber-400 transition-colors">Clearance Checker</a>
           <a href="/map" class="text-slate-300 hover:text-amber-400 transition-colors">Hazard Map</a>
+          <a href="/community" class="text-amber-400">Community</a>
         </nav>
       </div>
     </header>
 
     <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-grow w-full">
       <div class="mb-6">
-        <a href="/" class="text-sm font-semibold text-slate-400 hover:text-amber-400 transition-colors flex items-center gap-1">
-          ← Back to Overview
+        <a href="/community" class="text-sm font-semibold text-slate-400 hover:text-amber-400 transition-colors flex items-center gap-1">
+          ← Back to All Discussions
         </a>
       </div>
 
+      <!-- Main Topic Post -->
       <article class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 sm:p-10 shadow-xl space-y-6">
         <div>
           <span class="inline-block px-3 py-1 text-xs font-bold uppercase tracking-wider rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
-            {post?.category || 'Field Notes'}
+            {topic?.category || 'Great Loop Discussion'}
           </span>
           <h1 class="text-3xl sm:text-4xl font-extrabold text-white mt-3 leading-tight">
-            {post?.title || 'Untitled Update'}
+            {topic?.title || 'Untitled Topic'}
           </h1>
           <div class="flex items-center gap-4 text-xs text-slate-400 mt-3 pb-4 border-b border-slate-800">
-            <span>By <strong class="text-slate-300">{post?.author || 'Fellow Looper'}</strong></span>
-            {post?.created_at && (
-              <span>• {new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+            <span>By <strong class="text-slate-300">{topic?.author || 'Fellow Cruiser'}</strong></span>
+            {topic?.created_at && (
+              <span>• {new Date(topic.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
             )}
           </div>
         </div>
 
-        {post?.image_url && (
-          <div class="rounded-xl overflow-hidden border border-slate-800">
-            <img src={post.image_url} alt={post.title || 'Community entry image'} class="w-full max-h-[400px] object-cover" />
-          </div>
-        )}
-
         <div class="text-slate-300 leading-relaxed space-y-4 text-base whitespace-pre-line">
-          {post?.content || 'No entry details provided.'}
+          {topic?.description || topic?.content || 'No details provided.'}
         </div>
       </article>
+
+      <!-- Comments Thread -->
+      <section class="mt-8 space-y-4">
+        <h2 class="text-xl font-bold text-white">Replies ({comments.length})</h2>
+
+        {comments.length > 0 ? (
+          comments.map((c) => (
+            <div class="bg-slate-900/60 border border-slate-800 rounded-xl p-5 space-y-2">
+              <div class="flex justify-between items-center text-xs text-slate-400">
+                <span class="font-bold text-amber-400">{c.author || 'Anonymous Cruiser'}</span>
+                <span>{new Date(c.created_at).toLocaleDateString()}</span>
+              </div>
+              <p class="text-sm text-slate-300 leading-relaxed whitespace-pre-line">
+                {c.content || c.comment}
+              </p>
+            </div>
+          ))
+        ) : (
+          <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-6 text-center text-slate-500 text-sm">
+            No replies yet on this topic.
+          </div>
+        )}
+      </section>
     </main>
 
     <footer class="border-t border-slate-800 bg-slate-900 py-6 text-center text-xs text-slate-500">

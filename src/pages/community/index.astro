@@ -1,4 +1,8 @@
 ---
+export const prerender = true;
+
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || 'https://xrdxysgnjrtvvvovozkb.supabase.co';
+const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyZHh5c2duanJ0dnZ2b3ZvemtiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0Nzk1NzcsImV4cCI6MjEwNzA1NTU3N30.o6w3MNo2iBSoN2i_kZ73PAIJH5IXVZEIIelQS-1vyzM';
 ---
 
 <!DOCTYPE html>
@@ -181,64 +185,65 @@
     &copy; 2026 The Looper Log. Built for America's Great Loop cruisers.
   </footer>
 
-  <script is:inline>
-    const SUPABASE_URL = 'https://xrdxysgnjrtvvvovozkb.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyZHh5c2duanJ0dnZ2b3ZvemtiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0Nzk1NzcsImV4cCI6MjEwNzA1NTU3N30.o6w3MNo2iBSoN2i_kZ73PAIJH5IXVZEIIelQS-1vyzM';
+  <script is:inline define:vars={{ supabaseUrl, supabaseAnonKey }}>
+    document.addEventListener('DOMContentLoaded', () => {
+      async function fetchTopics() {
+        const container = document.getElementById('topics-container');
+        if (!container) return;
 
-    async function fetchTopics() {
-      const container = document.getElementById('topics-container');
-      try {
-        const [resTopics, resComments] = await Promise.all([
-          fetch(SUPABASE_URL + '/rest/v1/forum_topics?select=id,title,slug,description,created_at&order=created_at.desc', {
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': 'Bearer ' + SUPABASE_KEY
-            }
-          }),
-          fetch(SUPABASE_URL + '/rest/v1/forum_comments?select=topic_slug&approved=eq.true', {
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': 'Bearer ' + SUPABASE_KEY
-            }
-          })
-        ]);
+        try {
+          const [resTopics, resComments] = await Promise.all([
+            fetch(supabaseUrl + '/rest/v1/forum_topics?select=id,title,slug,description,created_at&order=created_at.desc', {
+              headers: {
+                'apikey': supabaseAnonKey,
+                'Authorization': 'Bearer ' + supabaseAnonKey
+              }
+            }),
+            fetch(supabaseUrl + '/rest/v1/forum_comments?select=topic_slug&approved=eq.true', {
+              headers: {
+                'apikey': supabaseAnonKey,
+                'Authorization': 'Bearer ' + supabaseAnonKey
+              }
+            })
+          ]);
 
-        const topics = await resTopics.json();
-        const comments = await resComments.json();
+          const topics = await resTopics.json();
+          const comments = await resComments.json();
 
-        const counts = {};
-        if (Array.isArray(comments)) {
-          comments.forEach(function(c) {
-            counts[c.topic_slug] = (counts[c.topic_slug] || 0) + 1;
-          });
-        }
+          const counts = {};
+          if (Array.isArray(comments)) {
+            comments.forEach(function(c) {
+              counts[c.topic_slug] = (counts[c.topic_slug] || 0) + 1;
+            });
+          }
 
-        if (Array.isArray(topics) && topics.length > 0) {
-          container.innerHTML = topics.map(function(t) {
-            const count = counts[t.slug] || 0;
-            const replyText = count === 1 ? '1 reply' : count + ' replies';
-            return '<a href="/community/' + t.slug + '" class="topic-card">' +
-              '<div class="topic-row">' +
-                '<div style="flex:1;">' +
-                  '<div class="topic-title">' + t.title + '</div>' +
-                  '<div class="topic-desc">' + (t.description || '') + '</div>' +
+          if (Array.isArray(topics) && topics.length > 0) {
+            container.innerHTML = topics.map(function(t) {
+              const count = counts[t.slug] || 0;
+              const replyText = count === 1 ? '1 reply' : count + ' replies';
+              return '<a href="/community/' + t.slug + '" class="topic-card">' +
+                '<div class="topic-row">' +
+                  '<div style="flex:1;">' +
+                    '<div class="topic-title">' + t.title + '</div>' +
+                    '<div class="topic-desc">' + (t.description || '') + '</div>' +
+                  '</div>' +
+                  '<div>' +
+                    '<span class="reply-badge">💬 ' + replyText + '</span>' +
+                  '</div>' +
                 '</div>' +
-                '<div>' +
-                  '<span class="reply-badge">💬 ' + replyText + '</span>' +
-                '</div>' +
-              '</div>' +
-            '</a>';
-          }).join('');
-        } else {
-          container.innerHTML = '<div style="background:#151e32; padding:2rem; border-radius:0.75rem; text-align:center; color:#94a3b8;">No topics found.</div>';
+              '</a>';
+            }).join('');
+          } else {
+            container.innerHTML = '<div style="background:#151e32; padding:2rem; border-radius:0.75rem; text-align:center; color:#94a3b8;">No topics found.</div>';
+          }
+        } catch (err) {
+          console.error(err);
+          container.innerHTML = '<div style="background:#151e32; padding:2rem; border-radius:0.75rem; text-align:center; color:#f87171;">Error loading topics. Please refresh.</div>';
         }
-      } catch (err) {
-        console.error(err);
-        container.innerHTML = '<div style="background:#151e32; padding:2rem; border-radius:0.75rem; text-align:center; color:#f87171;">Error loading topics. Please refresh.</div>';
       }
-    }
 
-    fetchTopics();
+      fetchTopics();
+    });
   </script>
 </body>
 </html>

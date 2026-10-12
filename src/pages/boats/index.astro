@@ -1,15 +1,25 @@
 ---
+export const prerender = true;
+
 import '../../styles/global.css';
 import { supabase } from '../../lib/supabase';
 
-// Fetch active listings from Supabase along with model clearance specs
-const { data: listings } = await supabase
-  .from('boat_listings')
-  .select('*, boat_models(*)')
-  .eq('status', 'active')
-  .order('first_seen_at', { ascending: false });
+let boats = [];
+try {
+  const { data: listings, error } = await supabase
+    .from('boat_listings')
+    .select('*, boat_models(*)')
+    .eq('status', 'active')
+    .order('first_seen_at', { ascending: false });
 
-const boats = listings || [];
+  if (error) {
+    console.error('Supabase query error:', error);
+  } else if (listings) {
+    boats = listings;
+  }
+} catch (err) {
+  console.error('Failed to load listings during build:', err);
+}
 
 // Helper to strip duplicate leading years from titles
 function cleanBoatTitle(rawTitle, year) {
@@ -159,7 +169,6 @@ const uniqueMakes = Array.from(makesSet).sort();
           const model = boat.boat_models || {};
           const displayTitle = cleanBoatTitle(boat.title || model.make_model, boat.year);
 
-          // Correct column names matching boat_models schema
           const airDraft = model.air_draft_feet != null 
             ? parseFloat(model.air_draft_feet) 
             : (parseFloat(boat.air_draft) || null);
@@ -171,7 +180,6 @@ const uniqueMakes = Array.from(makesSet).sort();
           const cruiseSpeed = model.typical_cruise_speed_knots ?? null;
           const cruiseGph = model.typical_gph ?? null;
 
-          // Schema column current_asking_price
           const rawPriceVal = boat.current_asking_price ?? boat.price;
           const cleanPrice = rawPriceVal ? parseFloat(String(rawPriceVal).replace(/[^0-9.]/g, '')) : 0;
           const formattedPrice = cleanPrice > 0 ? `$${cleanPrice.toLocaleString()} USD` : 'Inquire';
@@ -239,60 +247,55 @@ const uniqueMakes = Array.from(makesSet).sort();
     </footer>
 
     <script is:inline>
-      const makeSelect = document.getElementById('filter-make');
-      const priceSelect = document.getElementById('filter-price');
-      const airDraftSelect = document.getElementById('filter-airdraft');
-      const countEl = document.getElementById('boat-count');
-      const cards = document.querySelectorAll('.boat-card');
+      document.addEventListener('DOMContentLoaded', () => {
+        const makeSelect = document.getElementById('filter-make');
+        const priceSelect = document.getElementById('filter-price');
+        const airDraftSelect = document.getElementById('filter-airdraft');
+        const countEl = document.getElementById('boat-count');
+        const cards = document.querySelectorAll('.boat-card');
 
-      function filterBoats() {
-        const selectedMake = (makeSelect ? makeSelect.value : 'all').toLowerCase();
-        const selectedPrice = priceSelect ? priceSelect.value : 'all';
-        const selectedAirDraft = airDraftSelect ? airDraftSelect.value : 'all';
-        let visibleCount = 0;
+        function filterBoats() {
+          const selectedMake = (makeSelect ? makeSelect.value : 'all').toLowerCase();
+          const selectedPrice = priceSelect ? priceSelect.value : 'all';
+          const selectedAirDraft = airDraftSelect ? airDraftSelect.value : 'all';
+          let visibleCount = 0;
 
-        cards.forEach(card => {
-          const title = (card.getAttribute('data-title') || '').toLowerCase();
-          const price = parseFloat(card.getAttribute('data-price')) || 0;
-          const airDraft = parseFloat(card.getAttribute('data-airdraft')) || 99;
+          cards.forEach(card => {
+            const title = (card.getAttribute('data-title') || '').toLowerCase();
+            const price = parseFloat(card.getAttribute('data-price')) || 0;
+            const airDraft = parseFloat(card.getAttribute('data-airdraft')) || 99;
 
-          // 1. Make match
-          const matchesMake = (selectedMake === 'all' || title.includes(selectedMake));
+            const matchesMake = (selectedMake === 'all' || title.includes(selectedMake));
 
-          // 2. Price match
-          let matchesPrice = true;
-          if (selectedPrice !== 'all') {
-            const maxBudget = parseFloat(selectedPrice);
-            if (price > 0) {
-              matchesPrice = price <= maxBudget;
-            } else {
-              matchesPrice = false;
+            let matchesPrice = true;
+            if (selectedPrice !== 'all') {
+              const maxBudget = parseFloat(selectedPrice);
+              matchesPrice = price > 0 ? price <= maxBudget : false;
             }
-          }
 
-          // 3. Air draft clearance match
-          let matchesAirDraft = true;
-          if (selectedAirDraft !== 'all') {
-            const maxAirDraft = parseFloat(selectedAirDraft);
-            matchesAirDraft = airDraft <= maxAirDraft;
-          }
+            let matchesAirDraft = true;
+            if (selectedAirDraft !== 'all') {
+              const maxAirDraft = parseFloat(selectedAirDraft);
+              matchesAirDraft = airDraft <= maxAirDraft;
+            }
 
-          if (matchesMake && matchesPrice && matchesAirDraft) {
-            card.style.display = 'flex';
-            visibleCount++;
-          } else {
-            card.style.display = 'none';
-          }
-        });
+            if (matchesMake && matchesPrice && matchesAirDraft) {
+              card.style.display = 'flex';
+              visibleCount++;
+            } else {
+              card.style.display = 'none';
+            }
+          });
 
-        if (countEl) {
-          countEl.textContent = `Showing ${visibleCount} Loop-capable boats monitored`;
+          if (countEl) {
+            countEl.textContent = `Showing ${visibleCount} Loop-capable boats monitored`;
+          }
         }
-      }
 
-      makeSelect?.addEventListener('change', filterBoats);
-      priceSelect?.addEventListener('change', filterBoats);
-      airDraftSelect?.addEventListener('change', filterBoats);
+        makeSelect?.addEventListener('change', filterBoats);
+        priceSelect?.addEventListener('change', filterBoats);
+        airDraftSelect?.addEventListener('change', filterBoats);
+      });
     </script>
   </body>
 </html>
