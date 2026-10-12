@@ -1,484 +1,90 @@
 ---
-export async function getStaticPaths() {
-  const slugs = [
-    'bridge-clearances',
-    'draft-shallows',
-    'locks-dams',
-    'anchoring-marinas',
-    'fuel-engines',
-    'cruising-buddies',
-    'route-planning',
-    'boat-setup-gear',
-    'anchorages-and-marinas',
-    'route-timing-rivers',
-    'bridge-clearance-bottlenecks',
-    'anchorages-marinas-gulf-crossing',
-    'trawler-gear-power-systems'
-  ];
+export const prerender = true;
 
-  return slugs.map((slug) => ({
-    params: { slug }
+import '../../styles/global.css';
+import { supabase } from '../../lib/supabase';
+
+export async function getStaticPaths() {
+  const { data: posts, error } = await supabase
+    .from('community_posts')
+    .select('*');
+
+  if (error || !posts) {
+    console.error("Error fetching community posts for static paths:", error);
+    return [];
+  }
+
+  return posts.map((post) => ({
+    params: { slug: post.slug || post.id },
+    props: { post },
   }));
 }
 
-const { slug } = Astro.params;
+const { post } = Astro.props;
 ---
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Topic Discussion | The Looper Log</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      background-color: #0b1120;
-      color: #f8fafc;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-    a { text-decoration: none; color: inherit; }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{post?.title || 'Community Post'} | The Looper Log</title>
+  </head>
+  <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
-    /* Header Nav */
-    header {
-      background-color: #0f172a;
-      border-bottom: 1px solid #1e293b;
-      position: sticky;
-      top: 0;
-      z-index: 50;
-    }
-    .header-inner {
-      max-width: 1100px;
-      margin: 0 auto;
-      padding: 0 1.25rem;
-      height: 4rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .brand {
-      color: #f59e0b;
-      font-weight: 800;
-      font-size: 1.25rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      letter-spacing: 0.025em;
-    }
-    nav {
-      display: flex;
-      align-items: center;
-      gap: 1.5rem;
-      font-size: 0.9rem;
-      font-weight: 600;
-    }
-    nav a { color: #94a3b8; transition: color 0.15s ease; }
-    nav a:hover, nav a.active { color: #f59e0b; }
-
-    /* Content Area */
-    main {
-      flex: 1;
-      max-width: 820px;
-      width: 100%;
-      margin: 0 auto;
-      padding: 2.5rem 1.25rem;
-    }
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.4rem;
-      color: #f59e0b;
-      font-size: 0.95rem;
-      font-weight: 600;
-      margin-bottom: 1.5rem;
-      transition: color 0.15s ease;
-    }
-    .back-link:hover { color: #fbbf24; }
-
-    /* Topic Header Card */
-    .topic-box {
-      background-color: #151e32;
-      border: 1px solid #23324d;
-      border-radius: 0.85rem;
-      padding: 2rem;
-      margin-bottom: 2.5rem;
-    }
-    .topic-title {
-      font-size: 1.85rem;
-      font-weight: 800;
-      color: #ffffff;
-      margin-bottom: 0.75rem;
-      line-height: 1.25;
-    }
-    .topic-desc {
-      color: #94a3b8;
-      font-size: 1.05rem;
-      line-height: 1.6;
-    }
-
-    /* Comments Section */
-    .section-title {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #ffffff;
-      margin-bottom: 1.25rem;
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-    }
-    .reply-count-badge {
-      font-size: 0.75rem;
-      background-color: #1e293b;
-      color: #cbd5e1;
-      padding: 0.2rem 0.6rem;
-      border-radius: 9999px;
-      border: 1px solid #334155;
-    }
-    .comments-wrapper {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
-      margin-bottom: 3rem;
-    }
-    .comment-card {
-      background-color: #151e32;
-      border: 1px solid #23324d;
-      border-radius: 0.75rem;
-      padding: 1.25rem 1.5rem;
-    }
-    .comment-meta {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 0.75rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid #1e293b;
-      font-size: 0.85rem;
-    }
-    .comment-author {
-      font-weight: 700;
-      color: #f59e0b;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-    .comment-boat {
-      color: #94a3b8;
-      font-weight: 400;
-      font-style: italic;
-    }
-    .comment-date { color: #64748b; font-size: 0.8rem; }
-    .comment-text {
-      color: #f1f5f9;
-      font-size: 0.95rem;
-      line-height: 1.6;
-      white-space: pre-wrap;
-    }
-
-    /* Form Card */
-    .form-box {
-      background-color: #151e32;
-      border: 1px solid #23324d;
-      border-radius: 0.85rem;
-      padding: 2rem;
-    }
-    .form-title {
-      font-size: 1.25rem;
-      font-weight: 700;
-      color: #ffffff;
-      margin-bottom: 1.5rem;
-    }
-    .form-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 1.25rem;
-      margin-bottom: 1.25rem;
-    }
-    @media (min-width: 600px) {
-      .form-grid { grid-template-columns: 1fr 1fr; }
-    }
-    .field-group {
-      display: flex;
-      flex-direction: column;
-      gap: 0.45rem;
-      margin-bottom: 1.25rem;
-    }
-    label {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #cbd5e1;
-      letter-spacing: 0.02em;
-    }
-    /* Large high-contrast input boxes */
-    input[type="text"], textarea {
-      width: 100%;
-      background-color: #0b1120;
-      border: 1px solid #334155;
-      border-radius: 0.5rem;
-      padding: 0.85rem 1rem;
-      font-size: 1rem;
-      color: #f8fafc;
-      font-family: inherit;
-      outline: none;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
-    }
-    input[type="text"]:focus, textarea:focus {
-      border-color: #f59e0b;
-      box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
-    }
-    input::placeholder, textarea::placeholder {
-      color: #475569;
-    }
-    textarea {
-      resize: vertical;
-      min-height: 140px;
-    }
-    .submit-btn {
-      background-color: #f59e0b;
-      color: #0b1120;
-      font-weight: 700;
-      font-size: 1rem;
-      padding: 0.85rem 1.75rem;
-      border-radius: 0.5rem;
-      border: none;
-      cursor: pointer;
-      transition: background-color 0.15s ease;
-    }
-    .submit-btn:hover { background-color: #fbbf24; }
-    .submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
-    #status-box {
-      margin-bottom: 1rem;
-      padding: 0.85rem 1rem;
-      border-radius: 0.5rem;
-      font-size: 0.9rem;
-      font-weight: 600;
-      display: none;
-    }
-
-    /* Footer */
-    footer {
-      border-top: 1px solid #1e293b;
-      background-color: #0b1120;
-      padding: 2rem 1.25rem;
-      text-align: center;
-      color: #64748b;
-      font-size: 0.85rem;
-    }
-  </style>
-</head>
-<body>
-
-  <header>
-    <div class="header-inner">
-      <a href="/" class="brand">
-        <span>⚓</span>
-        <span>The Looper Log</span>
-      </a>
-      <nav>
-        <a href="/boats">Vessels</a>
-        <a href="/clearance">Clearance</a>
-        <a href="/map">Hazard Map</a>
-        <a href="/community" class="active">Community</a>
-      </nav>
-    </div>
-  </header>
-
-  <main>
-    <a href="/community" class="back-link">&larr; Back to all discussions</a>
-
-    <article class="topic-box">
-      <h1 id="topic-title" class="topic-title">Loading discussion...</h1>
-      <p id="topic-desc" class="topic-desc"></p>
-    </article>
-
-    <section>
-      <h2 class="section-title">
-        <span>Replies</span>
-        <span id="reply-badge" class="reply-count-badge">0</span>
-      </h2>
-
-      <div id="comments-list" class="comments-wrapper">
-        <div style="background:#151e32; border:1px dashed #23324d; padding:1.5rem; border-radius:0.75rem; text-align:center; color:#94a3b8;">
-          Loading replies...
-        </div>
+    <!-- Header Navigation -->
+    <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-2 text-amber-400 font-extrabold text-xl tracking-wide">
+          <span>⚓</span>
+          <span>The Looper Log</span>
+        </a>
+        <nav class="flex items-center gap-6 text-sm font-semibold">
+          <a href="/boats" class="text-slate-300 hover:text-amber-400 transition-colors">Vessels</a>
+          <a href="/clearance" class="text-slate-300 hover:text-amber-400 transition-colors">Clearance Checker</a>
+          <a href="/map" class="text-slate-300 hover:text-amber-400 transition-colors">Hazard Map</a>
+        </nav>
       </div>
-    </section>
+    </header>
 
-    <section class="form-box">
-      <h3 class="form-title">Post a Comment</h3>
-      
-      <div id="status-box"></div>
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-grow w-full">
+      <div class="mb-6">
+        <a href="/" class="text-sm font-semibold text-slate-400 hover:text-amber-400 transition-colors flex items-center gap-1">
+          ← Back to Overview
+        </a>
+      </div>
 
-      <form id="comment-form">
-        <div class="form-grid">
-          <div>
-            <label for="author_name">Your Name *</label>
-            <input
-              type="text"
-              id="author_name"
-              name="author_name"
-              required
-              placeholder="e.g. Captain Dan"
-            />
-          </div>
-          <div>
-            <label for="boat_name">Boat Name (Optional)</label>
-            <input
-              type="text"
-              id="boat_name"
-              name="boat_name"
-              placeholder="e.g. Sea Nomad"
-            />
+      <article class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 sm:p-10 shadow-xl space-y-6">
+        <div>
+          <span class="inline-block px-3 py-1 text-xs font-bold uppercase tracking-wider rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+            {post?.category || 'Field Notes'}
+          </span>
+          <h1 class="text-3xl sm:text-4xl font-extrabold text-white mt-3 leading-tight">
+            {post?.title || 'Untitled Update'}
+          </h1>
+          <div class="flex items-center gap-4 text-xs text-slate-400 mt-3 pb-4 border-b border-slate-800">
+            <span>By <strong class="text-slate-300">{post?.author || 'Fellow Looper'}</strong></span>
+            {post?.created_at && (
+              <span>• {new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+            )}
           </div>
         </div>
 
-        <div class="field-group">
-          <label for="comment_text">Comment / Insights *</label>
-          <textarea
-            id="comment_text"
-            name="comment_text"
-            required
-            placeholder="Share route conditions, gear advice, or harbor updates..."
-          ></textarea>
+        {post?.image_url && (
+          <div class="rounded-xl overflow-hidden border border-slate-800">
+            <img src={post.image_url} alt={post.title} class="w-full max-h-[400px] object-cover" />
+          </div>
+        )}
+
+        <div class="text-slate-300 leading-relaxed space-y-4 text-base whitespace-pre-line">
+          {post?.content || 'No entry details provided.'}
         </div>
+      </article>
+    </main>
 
-        <button type="submit" id="submit-btn" class="submit-btn">
-          Post Comment
-        </button>
-      </form>
-    </section>
-  </main>
+    <footer class="border-t border-slate-800 bg-slate-900 py-6 text-center text-xs text-slate-500">
+      <p>© 2026 The Looper Log. Built for America's Great Loop cruisers.</p>
+    </footer>
 
-  <footer>
-    &copy; 2026 The Looper Log. Built for America's Great Loop cruisers.
-  </footer>
-
-  <script is:inline define:vars={{ slug }}>
-    const SUPABASE_URL = 'https://xrdxysgnjrtvvvovozkb.supabase.co';
-    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyZHh5c2duanJ0dnZ2b3ZvemtiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0Nzk1NzcsImV4cCI6MjEwNzA1NTU3N30.o6w3MNo2iBSoN2i_kZ73PAIJH5IXVZEIIelQS-1vyzM';
-
-    async function loadTopicData() {
-      try {
-        const [resTopic, resComments] = await Promise.all([
-          fetch(SUPABASE_URL + '/rest/v1/forum_topics?slug=eq.' + slug + '&select=*', {
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': 'Bearer ' + SUPABASE_KEY
-            }
-          }),
-          fetch(SUPABASE_URL + '/rest/v1/forum_comments?topic_slug=eq.' + slug + '&approved=eq.true&order=created_at.asc', {
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': 'Bearer ' + SUPABASE_KEY
-            }
-          })
-        ]);
-
-        const [topic] = await resTopic.json();
-        const comments = await resComments.json();
-
-        if (topic) {
-          document.getElementById('topic-title').innerText = topic.title;
-          document.getElementById('topic-desc').innerText = topic.description || '';
-          document.title = topic.title + ' | The Looper Log';
-        }
-
-        const replyBadge = document.getElementById('reply-badge');
-        const commentsList = document.getElementById('comments-list');
-
-        replyBadge.innerText = (comments || []).length;
-
-        if (Array.isArray(comments) && comments.length > 0) {
-          commentsList.innerHTML = comments.map(function(c) {
-            const dateStr = new Date(c.created_at).toLocaleDateString();
-            const boatBadge = c.boat_name ? '<span class="comment-boat">• m/v ' + c.boat_name + '</span>' : '';
-            return '<div class="comment-card">' +
-              '<div class="comment-meta">' +
-                '<div class="comment-author">' +
-                  '<span>' + (c.author_name || 'Cruiser') + '</span>' +
-                  boatBadge +
-                '</div>' +
-                '<span class="comment-date">' + dateStr + '</span>' +
-              '</div>' +
-              '<p class="comment-text">' + c.comment_text + '</p>' +
-            '</div>';
-          }).join('');
-        } else {
-          commentsList.innerHTML = '<div style="background:#151e32; border:1px dashed #23324d; padding:1.5rem; border-radius:0.75rem; text-align:center; color:#94a3b8; font-size:0.95rem;">No replies yet. Be the first to post!</div>';
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    loadTopicData();
-
-    // Comment submission
-    const form = document.getElementById('comment-form');
-    const statusBox = document.getElementById('status-box');
-    const submitBtn = document.getElementById('submit-btn');
-
-    if (form) {
-      form.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        submitBtn.disabled = true;
-        submitBtn.innerText = 'Submitting...';
-
-        const author_name = document.getElementById('author_name').value.trim();
-        const boat_name = document.getElementById('boat_name').value.trim();
-        const comment_text = document.getElementById('comment_text').value.trim();
-
-        try {
-          const res = await fetch(SUPABASE_URL + '/rest/v1/forum_comments', {
-            method: 'POST',
-            headers: {
-              'apikey': SUPABASE_KEY,
-              'Authorization': 'Bearer ' + SUPABASE_KEY,
-              'Content-Type': 'application/json',
-              'Prefer': 'return=minimal'
-            },
-            body: JSON.stringify({
-              topic_slug: slug,
-              author_name: author_name,
-              boat_name: boat_name || null,
-              comment_text: comment_text,
-              approved: true
-            })
-          });
-
-          if (!res.ok) {
-            const err = await res.text();
-            throw new Error(err || 'Failed to submit comment');
-          }
-
-          statusBox.style.display = 'block';
-          statusBox.style.background = 'rgba(16, 185, 129, 0.15)';
-          statusBox.style.color = '#34d399';
-          statusBox.style.border = '1px solid rgba(16, 185, 129, 0.3)';
-          statusBox.innerText = 'Comment posted successfully!';
-          form.reset();
-
-          setTimeout(function() {
-            loadTopicData();
-            statusBox.style.display = 'none';
-            submitBtn.disabled = false;
-            submitBtn.innerText = 'Post Comment';
-          }, 1200);
-        } catch (err) {
-          statusBox.style.display = 'block';
-          statusBox.style.background = 'rgba(239, 68, 68, 0.15)';
-          statusBox.style.color = '#f87171';
-          statusBox.style.border = '1px solid rgba(239, 68, 68, 0.3)';
-          statusBox.innerText = 'Error: ' + (err.message || 'Unable to post comment.');
-          submitBtn.disabled = false;
-          submitBtn.innerText = 'Post Comment';
-        }
-      });
-    }
-  </script>
-</body>
+  </body>
 </html>
