@@ -1,47 +1,40 @@
 ---
+export const prerender = true;
+
 import '../../styles/global.css';
 import { supabase } from '../../lib/supabase';
 
-// Generate static routes for all active listings
 export async function getStaticPaths() {
-  const { data: listings } = await supabase
+  const { data: boats, error } = await supabase
     .from('boat_listings')
-    .select('id')
-    .eq('status', 'active');
+    .select('*, boat_models(*)');
 
-  return (listings || []).map((boat) => ({
+  if (error || !boats) {
+    console.error("Error fetching boats for static paths:", error);
+    return [];
+  }
+
+  return boats.map((boat) => ({
     params: { id: boat.id },
+    props: { boat },
   }));
 }
 
-const { id } = Astro.params;
-
-// 1. Fetch boat listing and joined model specs
-const { data: boat, error: boatError } = await supabase
-  .from('boat_listings')
-  .select('*, boat_models(*)')
-  .eq('id', id)
-  .single();
-
-if (boatError || !boat) {
-  return Astro.redirect('/boats');
-}
-
-// 2. Fetch recorded price history
-const { data: priceHistory } = await supabase
-  .from('price_history')
-  .select('*')
-  .eq('listing_id', id)
-  .order('recorded_at', { ascending: true });
-
+const { boat } = Astro.props;
 const model = boat.boat_models || {};
-const askingPrice = boat.current_asking_price ? `$${boat.current_asking_price.toLocaleString()} USD` : 'Inquire';
 
-// Clearance benchmarks
-const chicagoMax = 19.5;
-const champlainMax = 15.5;
-const airDraft = model.air_draft_feet != null ? parseFloat(model.air_draft_feet) : null;
-const waterDraft = model.water_draft_feet != null ? parseFloat(model.water_draft_feet) : null;
+// Clearance constants
+const CHICAGO_AIR_DRAFT_LIMIT = 19.6;
+const ERIE_AIR_DRAFT_LIMIT = 15.5;
+const DRAFT_LIMIT = 5.0;
+
+const airDraft = model.air_draft_feet ?? 0;
+const draft = model.draft_feet ?? 0;
+const beam = model.beam_feet ?? 0;
+
+const passesChicago = airDraft > 0 && airDraft <= CHICAGO_AIR_DRAFT_LIMIT;
+const passesErie = airDraft > 0 && airDraft <= ERIE_AIR_DRAFT_LIMIT;
+const passesDraft = draft > 0 && draft <= DRAFT_LIMIT;
 ---
 
 <!doctype html>
@@ -49,171 +42,164 @@ const waterDraft = model.water_draft_feet != null ? parseFloat(model.water_draft
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{boat.title} | The Looper Log</title>
-    <style>
-      * { box-sizing: border-box; }
-      body {
-        background-color: #0b1120;
-        color: #f8fafc;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        margin: 0;
-      }
-      .panel-card {
-        background-color: #151e32;
-        border: 1px solid #23324d;
-      }
-    </style>
+    <title>{boat.year} {model.manufacturer || ''} {model.model_name || 'Vessel Specs'} | The Looper Log</title>
   </head>
-  <body class="min-h-screen flex flex-col font-sans">
-    
-    <!-- Top Navigation -->
+  <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+
+    <!-- Header Navigation -->
     <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <a href="/" class="flex items-center gap-2 text-amber-400 font-extrabold text-xl tracking-wide">
-          <span>&#9875;</span>
+          <span>⚓</span>
           <span>The Looper Log</span>
         </a>
         <nav class="flex items-center gap-6 text-sm font-semibold">
           <a href="/boats" class="text-amber-400">Vessels</a>
           <a href="/clearance" class="text-slate-300 hover:text-amber-400 transition-colors">Clearance Checker</a>
           <a href="/map" class="text-slate-300 hover:text-amber-400 transition-colors">Hazard Map</a>
-          <a href="/community" class="text-slate-300 hover:text-amber-400 transition-colors">Community</a>
         </nav>
       </div>
     </header>
 
-    <main class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-grow w-full">
-      
-      <!-- Back Link -->
-      <a href="/boats" class="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-amber-400 transition-colors mb-6">
-        &larr; Back to all listings
-      </a>
-
-      <!-- Header Section -->
-      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800 mb-8">
-        <div>
-          <span class="text-xs font-bold px-2.5 py-0.5 rounded bg-slate-800 text-slate-300 uppercase tracking-wider border border-slate-700">
-            {boat.source_site || 'BROKER'}
-          </span>
-          <h1 class="text-2xl sm:text-3xl font-extrabold text-white mt-2">
-            {boat.title}
-          </h1>
-          <p class="text-slate-400 text-sm mt-1">
-            {boat.location_city && boat.location_state ? `${boat.location_city}, ${boat.location_state}` : 'Location unlisted'}
-          </p>
-        </div>
-
-        <div class="text-left sm:text-right">
-          <span class="block text-xs uppercase text-slate-400 font-semibold">Asking Price</span>
-          <span class="text-2xl sm:text-3xl font-extrabold text-amber-400">{askingPrice}</span>
-        </div>
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-grow w-full">
+      <div class="mb-6">
+        <a href="/boats" class="text-sm font-semibold text-slate-400 hover:text-amber-400 transition-colors flex items-center gap-1">
+          ← Back to All Vessels
+        </a>
       </div>
 
-      <!-- Grid: Specifications & Route Compatibility -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         
-        <!-- Loop Route Clearances -->
-        <div class="panel-card rounded-xl p-6">
-          <h2 class="text-base font-bold text-white mb-4">Route Clearance Status</h2>
-          <div class="space-y-4">
-            <div class="flex items-center justify-between pb-3 border-b border-slate-800 text-sm">
-              <div>
-                <span class="text-slate-300 font-medium block">Chicago Sanitary Canal (19.5 ft)</span>
-                <span class="text-xs text-slate-500">Fixed bridge at Lemont / Western Ave</span>
+        <!-- Left: Image & Overview -->
+        <div class="lg:col-span-2 space-y-6">
+          <div class="rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-xl">
+            {boat.image_url ? (
+              <img src={boat.image_url} alt={boat.title || 'Vessel'} class="w-full h-[420px] object-cover" />
+            ) : (
+              <div class="w-full h-[420px] bg-slate-800/60 flex items-center justify-center text-slate-600 text-6xl">
+                ⚓
               </div>
-              <span class={`font-bold px-2.5 py-1 rounded text-xs ${airDraft && airDraft <= chicagoMax ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'}`}>
-                {airDraft ? (airDraft <= chicagoMax ? 'CLEAR' : 'EXCEEDED') : 'UNKNOWN'}
-              </span>
-            </div>
+            )}
+          </div>
 
-            <div class="flex items-center justify-between pb-3 border-b border-slate-800 text-sm">
-              <div>
-                <span class="text-slate-300 font-medium block">Champlain Canal (15.5 ft)</span>
-                <span class="text-xs text-slate-500">Route north toward Lake Champlain</span>
-              </div>
-              <span class={`font-bold px-2.5 py-1 rounded text-xs ${airDraft && airDraft <= champlainMax ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-amber-950 text-amber-400 border border-amber-800'}`}>
-                {airDraft ? (airDraft <= champlainMax ? 'CLEAR' : 'REQUIRES DROP') : 'UNKNOWN'}
-              </span>
-            </div>
+          <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-lg">
+            <h1 class="text-3xl font-extrabold text-white">
+              {boat.year} {model.manufacturer} {model.model_name}
+            </h1>
+            <p class="text-amber-400 text-2xl font-bold mt-2">
+              {boat.price ? `$${boat.price.toLocaleString()}` : 'Contact for Price'}
+            </p>
+            <p class="text-slate-400 text-sm mt-1">
+              📍 Located in {boat.location || 'Location upon request'}
+            </p>
 
-            <div class="flex items-center justify-between text-sm">
-              <div>
-                <span class="text-slate-300 font-medium block">Water Draft (Max 5.0 ft)</span>
-                <span class="text-xs text-slate-500">Canal shoaling & river locks</span>
-              </div>
-              <span class={`font-bold px-2.5 py-1 rounded text-xs ${waterDraft && waterDraft <= 5.0 ? 'bg-emerald-950 text-emerald-400 border border-emerald-800' : 'bg-rose-950 text-rose-400 border border-rose-800'}`}>
-                {waterDraft ? `${waterDraft} ft` : 'N/A'}
-              </span>
-            </div>
+            <hr class="border-slate-800 my-6" />
+
+            <h2 class="text-lg font-bold text-white mb-3">Listing Details & Notes</h2>
+            <p class="text-slate-300 leading-relaxed text-sm whitespace-pre-line">
+              {boat.description || 'No detailed writeup provided for this vessel.'}
+            </p>
           </div>
         </div>
 
-        <!-- Vessel Specifications -->
-        <div class="panel-card rounded-xl p-6">
-          <h2 class="text-base font-bold text-white mb-4">Model Specifications</h2>
-          <div class="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span class="text-xs uppercase text-slate-500 font-semibold block">Air Draft</span>
-              <span class="font-bold text-slate-200">{airDraft ? `${airDraft} ft` : '—'}</span>
-            </div>
-            <div>
-              <span class="text-xs uppercase text-slate-500 font-semibold block">Water Draft</span>
-              <span class="font-bold text-slate-200">{waterDraft ? `${waterDraft} ft` : '—'}</span>
-            </div>
-            <div>
-              <span class="text-xs uppercase text-slate-500 font-semibold block">Typical Cruise</span>
-              <span class="font-bold text-slate-200">{model.typical_cruise_speed_knots ? `${model.typical_cruise_speed_knots} kts` : '—'}</span>
-            </div>
-            <div>
-              <span class="text-xs uppercase text-slate-500 font-semibold block">Fuel Burn Rate</span>
-              <span class="font-bold text-slate-200">{model.typical_gph ? `${model.typical_gph} gph` : '—'}</span>
-            </div>
-            <div>
-              <span class="text-xs uppercase text-slate-500 font-semibold block">Hull Type</span>
-              <span class="font-bold text-slate-200">{model.hull_type || '—'}</span>
-            </div>
-            <div>
-              <span class="text-xs uppercase text-slate-500 font-semibold block">Engine Details</span>
-              <span class="font-bold text-slate-200">{boat.engine_details || 'Standard marine diesel'}</span>
+        <!-- Right: Great Loop Clearance & Technical Specs -->
+        <div class="space-y-6">
+          
+          <!-- Clearance Readiness Card -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-lg">
+            <h2 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+              <span>🎯</span>
+              <span>Great Loop Feasibility</span>
+            </h2>
+
+            <div class="space-y-4 text-sm">
+              <div class="flex items-center justify-between p-3 rounded-lg bg-slate-950 border border-slate-800">
+                <div>
+                  <div class="font-semibold text-slate-200">Chicago Fixed Bridge</div>
+                  <div class="text-xs text-slate-400">Max Air Draft: 19.6 ft</div>
+                </div>
+                {passesChicago ? (
+                  <span class="px-2.5 py-1 text-xs font-bold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">PASS</span>
+                ) : (
+                  <span class="px-2.5 py-1 text-xs font-bold rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">FAIL</span>
+                )}
+              </div>
+
+              <div class="flex items-center justify-between p-3 rounded-lg bg-slate-950 border border-slate-800">
+                <div>
+                  <div class="font-semibold text-slate-200">Erie Canal Western Route</div>
+                  <div class="text-xs text-slate-400">Max Air Draft: 15.5 ft</div>
+                </div>
+                {passesErie ? (
+                  <span class="px-2.5 py-1 text-xs font-bold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">PASS</span>
+                ) : (
+                  <span class="px-2.5 py-1 text-xs font-bold rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">FAIL</span>
+                )}
+              </div>
+
+              <div class="flex items-center justify-between p-3 rounded-lg bg-slate-950 border border-slate-800">
+                <div>
+                  <div class="font-semibold text-slate-200">Waterway Water Depth</div>
+                  <div class="text-xs text-slate-400">Recommended Draft: &le; 5.0 ft</div>
+                </div>
+                {passesDraft ? (
+                  <span class="px-2.5 py-1 text-xs font-bold rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">PASS</span>
+                ) : (
+                  <span class="px-2.5 py-1 text-xs font-bold rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">CAUTION</span>
+                )}
+              </div>
             </div>
           </div>
+
+          <!-- Vessel Specifications Card -->
+          <div class="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-lg">
+            <h2 class="text-lg font-bold text-white mb-4">Specifications</h2>
+            <dl class="space-y-3 text-sm">
+              <div class="flex justify-between py-1.5 border-b border-slate-800/60">
+                <dt class="text-slate-400">Air Draft</dt>
+                <dd class="font-semibold text-white">{airDraft ? `${airDraft} ft` : 'N/A'}</dd>
+              </div>
+              <div class="flex justify-between py-1.5 border-b border-slate-800/60">
+                <dt class="text-slate-400">Draft</dt>
+                <dd class="font-semibold text-white">{draft ? `${draft} ft` : 'N/A'}</dd>
+              </div>
+              <div class="flex justify-between py-1.5 border-b border-slate-800/60">
+                <dt class="text-slate-400">Beam</dt>
+                <dd class="font-semibold text-white">{beam ? `${beam} ft` : 'N/A'}</dd>
+              </div>
+              <div class="flex justify-between py-1.5 border-b border-slate-800/60">
+                <dt class="text-slate-400">Length Overall (LOA)</dt>
+                <dd class="font-semibold text-white">{model.length_feet ? `${model.length_feet} ft` : 'N/A'}</dd>
+              </div>
+              <div class="flex justify-between py-1.5 border-b border-slate-800/60">
+                <dt class="text-slate-400">Fuel Type</dt>
+                <dd class="font-semibold text-white">{model.fuel_type || 'Diesel'}</dd>
+              </div>
+              <div class="flex justify-between py-1.5">
+                <dt class="text-slate-400">Hull Material</dt>
+                <dd class="font-semibold text-white">{model.hull_material || 'Fiberglass'}</dd>
+              </div>
+            </dl>
+
+            {boat.listing_url && (
+              <a 
+                href={boat.listing_url} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                class="mt-6 block w-full text-center py-2.5 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg transition-colors shadow-md"
+              >
+                View Original Listing ↗
+              </a>
+            )}
+          </div>
+
         </div>
       </div>
-
-      <!-- Price History Ledger -->
-      <div class="panel-card rounded-xl p-6 mb-8">
-        <h2 class="text-base font-bold text-white mb-3">Price History</h2>
-        {priceHistory && priceHistory.length > 0 ? (
-          <div class="divide-y divide-slate-800">
-            {priceHistory.map((p) => (
-              <div class="flex items-center justify-between py-2.5 text-sm">
-                <span class="text-slate-400">{new Date(p.recorded_at).toLocaleDateString()}</span>
-                <span class="font-bold text-amber-400">${p.asking_price.toLocaleString()} USD</span>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p class="text-xs text-slate-500">No recorded price changes for this listing yet.</p>
-        )}
-      </div>
-
-      <!-- External Source CTA -->
-      {boat.source_url && (
-        <div class="flex justify-end">
-          <a
-            href={boat.source_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="px-5 py-2.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm transition-colors"
-          >
-            Open Original Listing &rarr;
-          </a>
-        </div>
-      )}
     </main>
 
-    <footer class="border-t border-slate-800 bg-slate-900 py-8 text-center text-xs text-slate-500">
-      <p>&copy; 2026 The Looper Log. Built for America's Great Loop cruisers.</p>
+    <footer class="border-t border-slate-800 bg-slate-900 py-6 text-center text-xs text-slate-500">
+      <p>© 2026 The Looper Log. Built for America's Great Loop cruisers.</p>
     </footer>
+
   </body>
 </html>
