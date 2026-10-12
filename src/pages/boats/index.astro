@@ -14,11 +14,7 @@ const boats = listings || [];
 // Helper to strip duplicate leading years from titles
 function cleanBoatTitle(rawTitle, year) {
   let cleaned = (rawTitle || 'Vessel').trim();
-  // Remove duplicate 4-digit years at the start (e.g. "2022 2022 Jeanneau" -> "2022 Jeanneau")
   cleaned = cleaned.replace(/^(\b\d{4}\b\s+)+/, '');
-  if (year && !cleaned.startsWith(String(year))) {
-    return `${year} ${cleaned}`;
-  }
   return year ? `${year} ${cleaned}` : cleaned;
 }
 
@@ -130,7 +126,7 @@ const uniqueMakes = Array.from(makesSet).sort();
           <div>
             <label for="filter-price" class="block text-xs font-semibold uppercase text-slate-400 mb-2">Max Budget</label>
             <select id="filter-price" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-400">
-              <option value="all">Any Price / Inquire</option>
+              <option value="all">Any Price</option>
               <option value="50000">Under $50,000</option>
               <option value="100000">Under $100,000</option>
               <option value="200000">Under $200,000</option>
@@ -172,7 +168,14 @@ const uniqueMakes = Array.from(makesSet).sort();
           const cruiseSpeed = model.cruise_speed_knots || 16;
           const cruiseGph = model.gph_at_cruise || 22;
 
-          const cleanPrice = parseFloat(String(boat.price || '0').replace(/[^0-9.]/g, '')) || 0;
+          // Check all possible schema variations for price
+          const rawPriceVal = boat.price ?? boat.asking_price ?? boat.price_usd ?? boat.price_cad ?? boat.amount;
+          const cleanPrice = rawPriceVal
+            ? parseFloat(String(rawPriceVal).replace(/[^0-9.]/g, ''))
+            : 0;
+          const formattedPrice = cleanPrice > 0
+            ? `$${cleanPrice.toLocaleString()} USD`
+            : 'Inquire';
 
           return (
             <div 
@@ -187,7 +190,7 @@ const uniqueMakes = Array.from(makesSet).sort();
                     {boat.source || 'BOATTRADER'}
                   </span>
                   <span class="text-lg font-extrabold text-amber-400">
-                    {cleanPrice > 0 ? `$${cleanPrice.toLocaleString()} USD` : 'Inquire'}
+                    {formattedPrice}
                   </span>
                 </div>
 
@@ -247,27 +250,24 @@ const uniqueMakes = Array.from(makesSet).sort();
 
         cards.forEach(card => {
           const title = (card.getAttribute('data-title') || '').toLowerCase();
-          const rawPrice = card.getAttribute('data-price');
-          const rawAir = card.getAttribute('data-airdraft');
+          const price = parseFloat(card.getAttribute('data-price')) || 0;
+          const airDraft = parseFloat(card.getAttribute('data-airdraft')) || 18.5;
 
-          const price = parseFloat(rawPrice) || 0;
-          const airDraft = parseFloat(rawAir) > 0 ? parseFloat(rawAir) : 18.5;
-
-          // 1. Make / Model Filter
+          // 1. Make match
           const matchesMake = (selectedMake === 'all' || title.includes(selectedMake));
 
-          // 2. Price Filter (matches boats within budget, or includes 'Inquire' listings)
+          // 2. Price match
           let matchesPrice = true;
           if (selectedPrice !== 'all') {
             const maxBudget = parseFloat(selectedPrice);
             if (price > 0) {
               matchesPrice = price <= maxBudget;
             } else {
-              matchesPrice = true;
+              matchesPrice = true; // Retain unpriced/inquire listings so filter doesn't collapse to 0
             }
           }
 
-          // 3. Air Draft Clearance Filter
+          // 3. Air draft clearance match
           let matchesAirDraft = true;
           if (selectedAirDraft !== 'all') {
             const maxAirDraft = parseFloat(selectedAirDraft);
