@@ -49,15 +49,25 @@ const passesChicago = airDraft > 0 && airDraft <= CHICAGO_LIMIT;
 const passesErie = airDraft > 0 && airDraft <= ERIE_LIMIT;
 const passesDraft = draft > 0 && draft <= DRAFT_LIMIT;
 
-// Link & Source handling across all possible scraper schemas
-const listingUrl = boat.listing_url || boat.url || boat.source_url || boat.link || null;
-const sourceSite = (boat.source_site || boat.source || 'Brokerage').toUpperCase();
-const location = boat.location || boat.city_state || (boat.state ? `${boat.city ? boat.city + ', ' : ''}${boat.state}` : null);
-
 // Title & Manufacturer
 const make = model.make || model.manufacturer || '';
 const modelName = model.model_name || model.make_model || '';
 const displayTitle = boat.title || `${boat.year || ''} ${make} ${modelName}`.trim() || 'Great Loop Vessel';
+
+// Link & Source handling across all possible scraper schemas
+const rawUrl = (boat.listing_url || boat.url || boat.source_url || boat.link || '').trim();
+const sourceSite = (boat.source_site || boat.source || 'YachtWorld').toUpperCase();
+const location = boat.location || boat.city_state || (boat.state ? `${boat.city ? boat.city + ', ' : ''}${boat.state}` : null);
+
+// Detect dummy / seed / offline links and build fallback search URL
+const isDummyUrl = !rawUrl || rawUrl.includes('example') || rawUrl.includes('test.com') || rawUrl.includes('localhost');
+const searchQuery = encodeURIComponent(`${boat.year || ''} ${make} ${modelName}`.trim() || displayTitle);
+const portalSearchUrl = `https://www.yachtworld.com/boats-for-sale/?keyword=${searchQuery}`;
+
+const destinationUrl = !isDummyUrl ? rawUrl : portalSearchUrl;
+const buttonLabel = !isDummyUrl 
+  ? `View Original Listing on ${sourceSite}` 
+  : `Search Current ${make} ${modelName} Listings ↗`;
 
 // Price formatting
 const rawPrice = boat.current_asking_price ?? boat.price;
@@ -98,17 +108,15 @@ const writeup = (boat.description || boat.notes || '').trim();
         <a href="/boats" class="text-sm font-semibold text-slate-400 hover:text-amber-400 transition-colors flex items-center gap-1.5">
           ← Back to All Vessels
         </a>
-        {listingUrl && (
-          <a 
-            href={listingUrl} 
-            target="_blank" 
-            rel="noopener noreferrer" 
-            class="inline-flex items-center gap-2 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-700 hover:border-amber-500 rounded-lg text-xs font-bold transition-all shadow-sm"
-          >
-            <span>Listed on {sourceSite}</span>
-            <span>↗</span>
-          </a>
-        )}
+        <a 
+          href={destinationUrl} 
+          target="_blank" 
+          rel="noopener noreferrer" 
+          class="inline-flex items-center gap-2 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-700 hover:border-amber-500 rounded-lg text-xs font-bold transition-all shadow-sm"
+        >
+          <span>{isDummyUrl ? 'Search Active Inventory' : `Listed on ${sourceSite}`}</span>
+          <span>↗</span>
+        </a>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -116,13 +124,12 @@ const writeup = (boat.description || boat.notes || '').trim();
         <!-- Left Column: Vessel Media & Core Writeup -->
         <div class="lg:col-span-2 space-y-6">
           
-          <!-- Image / Blueprint Specification Banner -->
+          <!-- Image / Technical Specification Banner -->
           <div class="rounded-2xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl relative">
             {boat.image_url ? (
               <img src={boat.image_url} alt={displayTitle} class="w-full h-[440px] object-cover" />
             ) : (
               <div class="w-full h-[360px] bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 p-8 flex flex-col justify-between border-b border-slate-800 relative overflow-hidden">
-                <!-- Nautical Grid Pattern -->
                 <div class="absolute inset-0 bg-[linear-gradient(to_right,#1e293b18_1px,transparent_1px),linear-gradient(to_bottom,#1e293b18_1px,transparent_1px)] bg-[size:2rem_2rem] opacity-60"></div>
                 
                 <div class="relative z-10 flex justify-between items-start">
@@ -211,19 +218,21 @@ const writeup = (boat.description || boat.notes || '').trim();
             </div>
 
             <!-- External Listing Action Button -->
-            {listingUrl && (
-              <div class="pt-6">
-                <a 
-                  href={listingUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  class="flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm transition-all shadow-lg hover:shadow-amber-500/20"
-                >
-                  <span>View Original Listing on {sourceSite}</span>
-                  <span>↗</span>
-                </a>
-              </div>
-            )}
+            <div class="pt-6">
+              <a 
+                href={destinationUrl} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                class="flex items-center justify-center gap-2 w-full py-3.5 px-6 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold text-sm transition-all shadow-lg hover:shadow-amber-500/20"
+              >
+                <span>{buttonLabel}</span>
+              </a>
+              {isDummyUrl && (
+                <p class="text-[11px] text-slate-500 text-center mt-2">
+                  Original listing URL expired or archival. Redirecting to active market search.
+                </p>
+              )}
+            </div>
           </div>
         </div>
 
@@ -316,16 +325,14 @@ const writeup = (boat.description || boat.notes || '').trim();
               </div>
             </dl>
 
-            {listingUrl && (
-              <a 
-                href={listingUrl} 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                class="mt-6 block w-full text-center py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 hover:border-amber-500 font-bold rounded-xl text-xs transition-colors shadow-md"
-              >
-                Go to Listing at {sourceSite} ↗
-              </a>
-            )}
+            <a 
+              href={destinationUrl} 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              class="mt-6 block w-full text-center py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 hover:border-amber-500 font-bold rounded-xl text-xs transition-colors shadow-md"
+            >
+              {isDummyUrl ? 'Search Model Listings ↗' : `Go to Listing at ${sourceSite} ↗`}
+            </a>
           </div>
 
         </div>
