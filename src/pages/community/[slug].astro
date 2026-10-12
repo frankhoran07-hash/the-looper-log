@@ -30,7 +30,6 @@ const { slug } = Astro.params;
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Topic Discussion | The Looper Log</title>
-  <link rel="stylesheet" href="/src/styles/global.css" />
   <style>
     body {
       background-color: #020617;
@@ -66,7 +65,7 @@ const { slug } = Astro.params;
       </a>
     </div>
 
-    <!-- Topic Card -->
+    <!-- Topic Header -->
     <article id="topic-header" class="bg-slate-900 border border-slate-800 rounded-xl p-6 sm:p-8 mb-8 shadow-sm">
       <h1 id="topic-title" class="text-2xl sm:text-3xl font-extrabold text-white mb-3">Loading discussion...</h1>
       <p id="topic-desc" class="text-slate-300 text-base leading-relaxed"></p>
@@ -148,7 +147,7 @@ const { slug } = Astro.params;
 
   <script define:vars={{ slug }}>
     const SUPABASE_URL = 'https://xrdxysgnjrtvvovozkb.supabase.co';
-    const SUPABASE_KEY = 'sb_publishable_nXENTV7fbGij75cm40LcrA_HX0XsgDW';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhyZHh5c2duanJ0dnZ2b3ZvemtiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0Nzk1NzcsImV4cCI6MjEwNzA1NTU3N30.o6w3MNo2iBSoN2i_kZ73PAIJH5IXVZEIIelQS-1vyzM';
 
     async function loadTopicData() {
       try {
@@ -208,7 +207,7 @@ const { slug } = Astro.params;
 
     loadTopicData();
 
-    // Handle Comment Submission
+    // Comment submission handler
     const form = document.getElementById('comment-form');
     const statusBox = document.getElementById('status-box');
     const submitBtn = document.getElementById('submit-btn');
