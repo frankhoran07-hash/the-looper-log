@@ -5,19 +5,22 @@ import '../../styles/global.css';
 import { supabase } from '../../lib/supabase';
 
 export async function getStaticPaths() {
-  const { data: posts, error } = await supabase
-    .from('community_posts')
-    .select('*');
+  try {
+    const { data: posts, error } = await supabase
+      .from('community_posts')
+      .select('*');
 
-  if (error || !posts) {
-    console.error("Error fetching community posts for static paths:", error);
+    if (error || !posts || posts.length === 0) {
+      return [];
+    }
+
+    return posts.map((post) => ({
+      params: { slug: post.slug || post.id },
+      props: { post },
+    }));
+  } catch (err) {
     return [];
   }
-
-  return posts.map((post) => ({
-    params: { slug: post.slug || post.id },
-    props: { post },
-  }));
 }
 
 const { post } = Astro.props;
@@ -28,7 +31,7 @@ const { post } = Astro.props;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>{post?.title || 'Community Post'} | The Looper Log</title>
+    <title>{post?.title || 'Community Update'} | The Looper Log</title>
   </head>
   <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
@@ -72,7 +75,7 @@ const { post } = Astro.props;
 
         {post?.image_url && (
           <div class="rounded-xl overflow-hidden border border-slate-800">
-            <img src={post.image_url} alt={post.title} class="w-full max-h-[400px] object-cover" />
+            <img src={post.image_url} alt={post.title || 'Community entry image'} class="w-full max-h-[400px] object-cover" />
           </div>
         )}
 
