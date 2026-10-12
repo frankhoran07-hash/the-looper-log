@@ -1,24 +1,10 @@
 ---
-export const prerender = false;
+export const prerender = true;
 
 import '../styles/global.css';
-import { supabase } from '../lib/supabase';
 
-let hazards = [];
-try {
-  const { data, error } = await supabase
-    .from('hazard_markers')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (!error && data) {
-    hazards = data;
-  }
-} catch (e) {
-  console.error("Error loading hazard markers:", e);
-}
-
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || '';
 ---
 
 <!doctype html>
@@ -68,36 +54,20 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
     </footer>
 
     <!-- Leaflet & Supabase Persistence Script -->
-    <script is:inline define:vars={{ initialHazards: hazards, supabaseUrl, supabaseAnonKey }}>
-      document.addEventListener('DOMContentLoaded', () => {
-        const client = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseAnonKey) : null;
+    <script is:inline define:vars={{ supabaseUrl, supabaseAnonKey }}>
+      window.addEventListener('load', async () => {
+        if (!window.supabase) {
+          console.error("Supabase JS failed to load.");
+          return;
+        }
+
+        const client = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
         const map = L.map('map', { doubleClickZoom: false }).setView([36.5, -85.0], 5);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 18,
           attribution: '© OpenStreetMap contributors'
         }).addTo(map);
-
-        // Global delete handler exposed to popup inline onclick
-        window.deleteHazard = async (id) => {
-          if (!id) return;
-          if (!confirm("Are you sure you want to remove this hazard?")) return;
-
-          if (client) {
-            const { error } = await client
-              .from('hazard_markers')
-              .delete()
-              .eq('id', id);
-
-            if (error) {
-              console.error("Supabase delete error:", error);
-              alert("Failed to delete hazard: " + error.message);
-              return;
-            }
-          }
-
-          location.reload();
-        };
 
         function createPopupContent(h) {
           const deleteBtn = h.id 
@@ -117,17 +87,45 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
           `;
         }
 
-        // Render markers loaded on the server
-        initialHazards.forEach(h => {
-          L.marker([h.latitude, h.longitude])
-            .addTo(map)
-            .bindPopup(createPopupContent(h));
-        });
+        window.deleteHazard = async (id) => {
+          if (!id) return;
+          if (!confirm("Are you sure you want to remove this hazard?")) return;
+
+          const { error } = await client
+            .from('hazard_markers')
+            .delete()
+            .eq('id', id);
+
+          if (error) {
+            console.error("Supabase delete error:", error);
+            alert("Failed to delete hazard: " + error.message);
+            return;
+          }
+
+          location.reload();
+        };
+
+        // Fetch existing hazard markers live from Supabase
+        const { data: markers, error: fetchErr } = await client
+          .from('hazard_markers')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (fetchErr) {
+          console.error("Error fetching live hazards:", fetchErr);
+        } else if (markers) {
+          markers.forEach((h) => {
+            L.marker([h.latitude, h.longitude])
+              .addTo(map)
+              .bindPopup(createPopupContent(h));
+          });
+        }
 
         // Double-click handler to insert into Supabase and place marker
         map.on('dblclick', async (e) => {
           const title = prompt("Enter hazard title (e.g. 'Shallow Shoal at Low Tide'):");
-          if (!title) return;
+          if (!title || !title.trim()) return;
+
           const description = prompt("Enter details/notes for other cruisers:") || '';
 
           const newHazard = {
@@ -139,30 +137,23 @@ const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
             longitude: e.latlng.lng
           };
 
-          if (client) {
-            const { data, error } = await client
-              .from('hazard_markers')
-              .insert([newHazard])
-              .select();
+          const { data, error } = await client
+            .from('hazard_markers')
+            .insert([newHazard])
+            .select();
 
-            if (error) {
-              console.error("Supabase insert error:", error);
-              alert("Error saving hazard: " + error.message);
-              return;
-            }
-
-            const savedHazard = (data && data[0]) ? data[0] : newHazard;
-
-            L.marker([savedHazard.latitude, savedHazard.longitude])
-              .addTo(map)
-              .bindPopup(createPopupContent(savedHazard))
-              .openPopup();
-          } else {
-            L.marker([newHazard.latitude, newHazard.longitude])
-              .addTo(map)
-              .bindPopup(createPopupContent(newHazard))
-              .openPopup();
+          if (error) {
+            console.error("Supabase insert error:", error);
+            alert("Error saving hazard: " + error.message);
+            return;
           }
+
+          const savedHazard = (data && data[0]) ? data[0] : newHazard;
+
+          L.marker([savedHazard.latitude, savedHazard.longitude])
+            .addTo(map)
+            .bindPopup(createPopupContent(savedHazard))
+            .openPopup();
         });
       });
     </script>
