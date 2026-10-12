@@ -11,18 +11,29 @@ const { data: listings } = await supabase
 
 const boats = listings || [];
 
-// Extract unique makes from actual data and common models
-const listingMakes = boats.map((l) => {
-  const model = l.boat_models?.make_model || l.title || '';
-  const words = model.trim().split(/\s+/);
-  // Skip leading 4-digit years like '1991 Mainship'
-  if (words[0] && /^\d{4}$/.test(words[0])) {
-    return words[1] || words[0];
+// Helper to strip duplicate leading years from titles
+function cleanBoatTitle(rawTitle, year) {
+  let cleaned = (rawTitle || 'Vessel').trim();
+  // Remove consecutive duplicate 4-digit years at the start (e.g., "2022 2022 Jeanneau" -> "2022 Jeanneau")
+  cleaned = cleaned.replace(/^(\b\d{4}\b\s+)+/, '');
+  if (year && !cleaned.startsWith(String(year))) {
+    return `${year} ${cleaned}`;
   }
-  return words[0] || '';
-}).filter(Boolean);
+  return year ? `${year} ${cleaned}` : cleaned;
+}
 
-const uniqueMakes = Array.from(new Set(listingMakes)).sort();
+// Extract clean brand / makes for filter dropdown
+const makesSet = new Set();
+boats.forEach((b) => {
+  let title = (b.boat_models?.make_model || b.title || '').trim();
+  // Strip leading years
+  title = title.replace(/^(\d{4}\s*)+/, '');
+  const brand = title.split(' ')[0];
+  if (brand && brand.length > 2 && isNaN(brand)) {
+    makesSet.add(brand.charAt(0).toUpperCase() + brand.slice(1).toLowerCase());
+  }
+});
+const uniqueMakes = Array.from(makesSet).sort();
 ---
 
 <!doctype html>
@@ -31,13 +42,37 @@ const uniqueMakes = Array.from(new Set(listingMakes)).sort();
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Great Loop Vessels Market | The Looper Log</title>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        background-color: #0b1120;
+        color: #f8fafc;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        margin: 0;
+      }
+      .filter-card {
+        background-color: #151e32;
+        border: 1px solid #23324d;
+      }
+      .boat-card {
+        background-color: #151e32;
+        border: 1px solid #23324d;
+        border-radius: 0.85rem;
+        transition: transform 0.15s ease, border-color 0.15s ease;
+      }
+      .boat-card:hover {
+        border-color: #f59e0b;
+        transform: translateY(-2px);
+      }
+    </style>
   </head>
-  <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+  <body class="min-h-screen flex flex-col font-sans">
     
+    <!-- Navigation -->
     <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <a href="/" class="flex items-center gap-2 text-amber-400 font-extrabold text-xl tracking-wide">
-          <span>&#9875;</span>
+          <span>⚓</span>
           <span>The Looper Log</span>
         </a>
         <nav class="flex items-center gap-6 text-sm font-semibold">
@@ -52,29 +87,29 @@ const uniqueMakes = Array.from(new Set(listingMakes)).sort();
     <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 flex-grow w-full">
       
       <!-- Critical Clearance Milestones Banner -->
-      <div class="mb-10">
+      <div class="mb-8">
         <div class="flex items-center justify-between mb-3">
           <span class="text-xs font-bold uppercase tracking-wider text-amber-400">Critical Clearance Milestones</span>
           <a href="/clearance" class="text-xs font-semibold text-amber-400 hover:underline">Test Your Boat Clearance &rarr;</a>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-5 rounded-xl bg-slate-900/80 border border-slate-800">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 p-5 rounded-xl filter-card">
           <div>
-            <span class="text-xs uppercase text-slate-400 font-bold block">Bridge Bottleneck</span>
+            <span class="text-xs uppercase text-slate-400 font-semibold block">Bridge Bottleneck</span>
             <span class="text-xl font-extrabold text-amber-400">19' 6"</span>
             <span class="text-xs text-slate-500 block">Chicago / Lemont Bridge</span>
           </div>
           <div>
-            <span class="text-xs uppercase text-slate-400 font-bold block">Max Water Draft</span>
+            <span class="text-xs uppercase text-slate-400 font-semibold block">Max Water Draft</span>
             <span class="text-xl font-extrabold text-amber-400">5' 0"</span>
             <span class="text-xs text-slate-500 block">Canals &amp; River Shallows</span>
           </div>
           <div>
-            <span class="text-xs uppercase text-slate-400 font-bold block">Champlain Canal</span>
+            <span class="text-xs uppercase text-slate-400 font-semibold block">Champlain Canal</span>
             <span class="text-xl font-extrabold text-amber-400">15' 6"</span>
             <span class="text-xs text-slate-500 block">Fixed bridges northward</span>
           </div>
           <div>
-            <span class="text-xs uppercase text-slate-400 font-bold block">Erie Canal (Eastern)</span>
+            <span class="text-xs uppercase text-slate-400 font-semibold block">Erie Canal (Eastern)</span>
             <span class="text-xl font-extrabold text-amber-400">21' 0"</span>
             <span class="text-xs text-slate-500 block">Waterford to Oswego cut</span>
           </div>
@@ -82,21 +117,21 @@ const uniqueMakes = Array.from(new Set(listingMakes)).sort();
       </div>
 
       <!-- Filter Controls Bar -->
-      <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-5 mb-10">
+      <div class="filter-card rounded-xl p-5 mb-8">
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label for="filter-make" class="block text-xs font-semibold uppercase text-slate-400 mb-2">Filter by Boat Make / Model</label>
-            <select id="filter-make" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-400">
+            <label for="filter-make" class="block text-xs font-semibold uppercase text-slate-400 mb-2">Filter by Make / Builder</label>
+            <select id="filter-make" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-400">
               <option value="all">All Makes &amp; Models ({boats.length})</option>
               {uniqueMakes.map((m) => (
-                <option value={m}>{m}</option>
+                <option value={m.toLowerCase()}>{m}</option>
               ))}
             </select>
           </div>
           <div>
             <label for="filter-price" class="block text-xs font-semibold uppercase text-slate-400 mb-2">Max Budget</label>
-            <select id="filter-price" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-400">
-              <option value="all">Any Price</option>
+            <select id="filter-price" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-400">
+              <option value="all">Any Price / Inquire</option>
               <option value="50000">Under $50,000</option>
               <option value="100000">Under $100,000</option>
               <option value="200000">Under $200,000</option>
@@ -106,7 +141,7 @@ const uniqueMakes = Array.from(new Set(listingMakes)).sort();
           </div>
           <div>
             <label for="filter-airdraft" class="block text-xs font-semibold uppercase text-slate-400 mb-2">Air Draft Compatibility</label>
-            <select id="filter-airdraft" class="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-400">
+            <select id="filter-airdraft" class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 focus:outline-none focus:border-amber-400">
               <option value="all">All Clearances</option>
               <option value="19.5">Chicago Route Clear (&le; 19.5 ft)</option>
               <option value="15.5">Champlain Route Clear (&le; 15.5 ft)</option>
@@ -115,7 +150,7 @@ const uniqueMakes = Array.from(new Set(listingMakes)).sort();
         </div>
       </div>
 
-      <!-- Headline -->
+      <!-- Headline & Count -->
       <div class="mb-6">
         <h1 class="text-2xl sm:text-3xl font-extrabold text-white">Loop Vessels Market</h1>
         <p id="boat-count" class="text-slate-400 text-sm mt-1">
@@ -127,26 +162,33 @@ const uniqueMakes = Array.from(new Set(listingMakes)).sort();
       <div id="vessels-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {boats.map((boat) => {
           const model = boat.boat_models || {};
-          // Parse numerical draft values safely
+          
+          // Clear double year from title
+          const displayTitle = cleanBoatTitle(boat.title || model.make_model, boat.year);
+
+          // Numeric air and water draft parsing
           const rawAir = model.air_draft_clean_ft || model.air_draft_ft || boat.air_draft || 18.5;
           const airDraft = parseFloat(rawAir) || 18.5;
           const rawWater = model.water_draft_ft || boat.draft || 3.25;
           const waterDraft = parseFloat(rawWater) || 3.25;
+
           const cruiseSpeed = model.cruise_speed_knots || 16;
           const cruiseGph = model.gph_at_cruise || 22;
+
+          // Price parsing
           const cleanPrice = parseFloat(String(boat.price || '0').replace(/[^0-9.]/g, '')) || 0;
-          const displayMake = model.make_model || boat.title || 'Vessel';
 
           return (
             <div 
-              class="boat-card bg-slate-900 border border-slate-800 rounded-xl p-5 flex flex-col justify-between hover:border-slate-700 transition-colors"
-              data-make={displayMake.toLowerCase()}
+              class="boat-card p-5 flex flex-col justify-between"
+              data-title={displayTitle.toLowerCase()}
               data-price={cleanPrice}
               data-airdraft={airDraft}
             >
               <div>
+                <!-- Source Badge & Price Header -->
                 <div class="flex items-center justify-between mb-3">
-                  <span class="text-xs font-bold px-2 py-0.5 rounded bg-slate-800 text-slate-300 uppercase tracking-wider">
+                  <span class="text-xs font-bold px-2.5 py-0.5 rounded bg-slate-800 text-slate-300 uppercase tracking-wider border border-slate-700">
                     {boat.source || 'BOATTRADER'}
                   </span>
                   <span class="text-lg font-extrabold text-amber-400">
@@ -154,35 +196,38 @@ const uniqueMakes = Array.from(new Set(listingMakes)).sort();
                   </span>
                 </div>
 
+                <!-- Vessel Title -->
                 <h2 class="text-base font-bold text-white mb-4 line-clamp-1">
-                  {boat.year ? `${boat.year} ` : ''}{displayMake}
+                  {displayTitle}
                 </h2>
 
-                <div class="grid grid-cols-3 gap-2 py-3 border-y border-slate-800/80 text-xs mb-4">
+                <!-- Specs Grid -->
+                <div class="grid grid-cols-3 gap-2 py-3 border-y border-slate-800 text-xs mb-4">
                   <div>
-                    <span class="text-slate-500 block">Air Draft</span>
+                    <span class="text-slate-500 block font-medium">Air Draft</span>
                     <span class="font-bold text-slate-200">{airDraft} ft</span>
                   </div>
                   <div>
-                    <span class="text-slate-500 block">Water Draft</span>
+                    <span class="text-slate-500 block font-medium">Water Draft</span>
                     <span class="font-bold text-slate-200">{waterDraft} ft</span>
                   </div>
                   <div>
-                    <span class="text-slate-500 block">Cruise / GPH</span>
+                    <span class="text-slate-500 block font-medium">Cruise / GPH</span>
                     <span class="font-bold text-slate-200">{cruiseSpeed} kts @ {cruiseGph} gph</span>
                   </div>
                 </div>
               </div>
 
+              <!-- Action Card Footer -->
               <div class="flex items-center justify-between pt-2">
                 <span class="text-xs text-slate-500">
-                  Seen: {boat.first_seen_at ? new Date(boat.first_seen_at).toLocaleDateString() : 'Active'}
+                  {boat.first_seen_at ? `Listed ${new Date(boat.first_seen_at).toLocaleDateString()}` : 'Active'}
                 </span>
                 <a 
                   href={`/boats/${boat.id}`} 
-                  class="text-xs font-bold px-3 py-2 rounded bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors"
+                  class="text-xs font-bold px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 transition-colors"
                 >
-                  View Specs &amp; History &rarr;
+                  View Specs &rarr;
                 </a>
               </div>
             </div>
@@ -209,13 +254,25 @@ const uniqueMakes = Array.from(new Set(listingMakes)).sort();
         let visibleCount = 0;
 
         cards.forEach(card => {
-          const make = card.getAttribute('data-make') || '';
+          const title = card.getAttribute('data-title') || '';
           const price = parseFloat(card.getAttribute('data-price')) || 0;
           const airDraft = parseFloat(card.getAttribute('data-airdraft')) || 0;
 
-          const matchesMake = (selectedMake === 'all' || make.includes(selectedMake));
-          const matchesPrice = (selectedPrice === 'all' || (price > 0 && price <= parseFloat(selectedPrice)));
-          const matchesAirDraft = (selectedAirDraft === 'all' || airDraft <= parseFloat(selectedAirDraft));
+          // 1. Make match
+          const matchesMake = (selectedMake === 'all' || title.includes(selectedMake));
+
+          // 2. Price match (if user chooses a budget limit, only show boats that actually fit the limit)
+          let matchesPrice = true;
+          if (selectedPrice !== 'all') {
+            const maxBudget = parseFloat(selectedPrice);
+            matchesPrice = price > 0 && price <= maxBudget;
+          }
+
+          // 3. Air draft clearance match
+          let matchesAirDraft = true;
+          if (selectedAirDraft !== 'all') {
+            matchesAirDraft = airDraft <= parseFloat(selectedAirDraft);
+          }
 
           if (matchesMake && matchesPrice && matchesAirDraft) {
             card.style.display = 'flex';
