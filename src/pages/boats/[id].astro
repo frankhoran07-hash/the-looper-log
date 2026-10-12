@@ -56,10 +56,10 @@ const displayTitle = boat.title || `${boat.year || ''} ${make} ${modelName}`.tri
 
 // Link & Source handling across all portals
 const rawUrl = (boat.listing_url || boat.url || boat.source_url || boat.link || '').trim();
-const sourceRaw = (boat.source_site || boat.source || '').toLowerCase();
+const sourceRaw = (boat.source_site || boat.source || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-let sourceSite = 'BROKER';
-let portalSearchBase = 'https://www.yachtworld.com/boats-for-sale/?keyword=';
+let sourceSite = (boat.source_site || boat.source || 'Broker').trim();
+let portalSearchBase = '';
 
 if (sourceRaw.includes('boatdealer') || rawUrl.includes('boatdealers.ca')) {
   sourceSite = 'BoatDealers.ca';
@@ -67,11 +67,18 @@ if (sourceRaw.includes('boatdealer') || rawUrl.includes('boatdealers.ca')) {
 } else if (sourceRaw.includes('boattrader') || rawUrl.includes('boattrader.com')) {
   sourceSite = 'Boat Trader';
   portalSearchBase = 'https://www.boattrader.com/boats/search/?keyword=';
+} else if (sourceRaw.includes('denison') || rawUrl.includes('denisonyachtsales.com')) {
+  sourceSite = 'Denison Yachting';
+  portalSearchBase = 'https://www.denisonyachtsales.com/yachts-for-sale/?keyword=';
+} else if (sourceRaw.includes('curtisstokes') || rawUrl.includes('curtisstokes.net')) {
+  sourceSite = 'Curtis Stokes';
+  portalSearchBase = 'https://www.curtisstokes.com/?s=';
 } else if (sourceRaw.includes('yachtworld') || rawUrl.includes('yachtworld.com')) {
   sourceSite = 'YachtWorld';
   portalSearchBase = 'https://www.yachtworld.com/boats-for-sale/?keyword=';
-} else if (boat.source_site || boat.source) {
-  sourceSite = (boat.source_site || boat.source).toUpperCase();
+} else {
+  sourceSite = (boat.source_site || boat.source || 'Brokerage').toUpperCase();
+  portalSearchBase = `https://www.google.com/search?q=${encodeURIComponent(sourceSite + ' ')}`;
 }
 
 // Detect dummy / seed / offline links
