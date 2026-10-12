@@ -1,27 +1,4 @@
 ---
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || import.meta.env.SUPABASE_URL;
-const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY;
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
-// Fetch all discussion topics (omitting category)
-const { data: topics, error: topicsError } = await supabase
-  .from('forum_topics')
-  .select('id, title, slug, description, created_at')
-  .order('created_at', { ascending: false });
-
-// Fetch counts for approved comments
-const { data: comments } = await supabase
-  .from('forum_comments')
-  .select('topic_slug')
-  .eq('approved', true);
-
-const commentCountMap = (comments || []).reduce((acc, c) => {
-  acc[c.topic_slug] = (acc[c.topic_slug] || 0) + 1;
-  return acc;
-}, {} as Record<string, number>);
 ---
 
 <!DOCTYPE html>
@@ -35,10 +12,11 @@ const commentCountMap = (comments || []).reduce((acc, c) => {
     body {
       background-color: #020617;
       color: #f8fafc;
-      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       margin: 0;
       padding: 0;
     }
+    a { text-decoration: none; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col bg-slate-950 text-slate-100">
@@ -60,8 +38,7 @@ const commentCountMap = (comments || []).reduce((acc, c) => {
   </header>
 
   <main class="flex-grow max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full">
-    <!-- Header Section -->
-    <div class="mb-10 text-center sm:text-left">
+    <div class="mb-8">
       <h1 class="text-3xl sm:text-4xl font-extrabold text-white tracking-tight mb-2">
         Community Discussions
       </h1>
@@ -70,50 +47,12 @@ const commentCountMap = (comments || []).reduce((acc, c) => {
       </p>
     </div>
 
-    <!-- Topics List -->
-    {topics && topics.length > 0 ? (
-      <div class="grid grid-cols-1 gap-4">
-        {topics.map((t) => {
-          const replyCount = commentCountMap[t.slug] || 0;
-          return (
-            <a
-              href={`/community/${t.slug}`}
-              class="block bg-slate-900 border border-slate-800 rounded-xl p-6 hover:border-amber-500/50 hover:bg-slate-900/80 transition-all duration-200 group"
-            >
-              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div class="space-y-2 flex-grow">
-                  <h2 class="text-lg sm:text-xl font-bold text-white group-hover:text-amber-400 transition-colors">
-                    {t.title}
-                  </h2>
-                  <p class="text-slate-300 text-sm line-clamp-2 leading-relaxed">
-                    {t.description}
-                  </p>
-                </div>
-
-                <div class="flex items-center sm:flex-col sm:items-end justify-between shrink-0 text-xs text-slate-400 border-t sm:border-t-0 border-slate-800 pt-3 sm:pt-0">
-                  <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800 text-amber-400 font-semibold border border-slate-700">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                    </svg>
-                    {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
-                  </span>
-                  {t.created_at && (
-                    <span class="mt-2 text-slate-500 text-[11px]">
-                      {new Date(t.created_at).toLocaleDateString()}
-                    </span>
-                  )}
-                </div>
-              </div>
-            </a>
-          );
-        })}
+    <!-- Topics Container -->
+    <div id="topics-container" class="grid grid-cols-1 gap-4">
+      <div class="bg-slate-900/40 border border-slate-800 rounded-xl p-8 text-center text-slate-400">
+        Loading discussion topics...
       </div>
-    ) : (
-      <div class="bg-slate-900/40 border border-dashed border-slate-800 rounded-xl p-12 text-center text-slate-400">
-        <p class="text-lg font-semibold text-slate-300 mb-2">No discussion topics available yet</p>
-        <p class="text-sm">Check back shortly or ensure topics are seeded in the database.</p>
-      </div>
-    )}
+    </div>
   </main>
 
   <footer class="border-t border-slate-800 py-8 bg-slate-950 mt-auto">
@@ -121,5 +60,68 @@ const commentCountMap = (comments || []).reduce((acc, c) => {
       &copy; 2026 The Looper Log. Built for America's Great Loop cruisers.
     </div>
   </footer>
+
+  <script>
+    const SUPABASE_URL = 'https://xrdxysgnjrtvvovozkb.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_nXENTV7fbGij75cm40LcrA_HX0XsgDW';
+
+    async function fetchTopics() {
+      const container = document.getElementById('topics-container');
+      try {
+        const [resTopics, resComments] = await Promise.all([
+          fetch(`${SUPABASE_URL}/rest/v1/forum_topics?select=id,title,slug,description,created_at&order=created_at.desc`, {
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`
+            }
+          }),
+          fetch(`${SUPABASE_URL}/rest/v1/forum_comments?select=topic_slug&approved=eq.true`, {
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`
+            }
+          })
+        ]);
+
+        const topics = await resTopics.json();
+        const comments = await resComments.json();
+
+        const counts = (comments || []).reduce((acc, c) => {
+          acc[c.topic_slug] = (acc[c.topic_slug] || 0) + 1;
+          return acc;
+        }, {});
+
+        if (Array.isArray(topics) && topics.length > 0) {
+          container.innerHTML = topics.map(t => {
+            const count = counts[t.slug] || 0;
+            return `
+              <a href="/community/${t.slug}" class="block bg-slate-900 border border-slate-800 rounded-xl p-6 hover:border-amber-500/50 hover:bg-slate-900/80 transition-all duration-200">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div class="space-y-2 flex-grow">
+                    <h2 class="text-lg sm:text-xl font-bold text-white hover:text-amber-400 transition-colors">
+                      ${t.title}
+                    </h2>
+                    <p class="text-slate-300 text-sm line-clamp-2 leading-relaxed">
+                      ${t.description || ''}
+                    </p>
+                  </div>
+                  <div class="flex items-center shrink-0 text-xs text-amber-400 font-semibold">
+                    <span class="px-3 py-1 rounded-full bg-slate-800 border border-slate-700">💬 ${count} ${count === 1 ? 'reply' : 'replies'}</span>
+                  </div>
+                </div>
+              </a>
+            `;
+          }).join('');
+        } else {
+          container.innerHTML = `<div class="bg-slate-900/40 border border-slate-800 rounded-xl p-8 text-center text-slate-400">No topics found.</div>`;
+        }
+      } catch (err) {
+        console.error(err);
+        container.innerHTML = `<div class="bg-slate-900/40 border border-red-800 rounded-xl p-8 text-center text-red-400">Error loading topics. Please refresh.</div>`;
+      }
+    }
+
+    fetchTopics();
+  </script>
 </body>
 </html>

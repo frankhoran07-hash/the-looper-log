@@ -1,40 +1,27 @@
 ---
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || import.meta.env.SUPABASE_URL;
-const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 export async function getStaticPaths() {
-  const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL || import.meta.env.SUPABASE_URL;
-  const supabaseKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY;
-  const supabase = createClient(supabaseUrl, supabaseKey);
+  const slugs = [
+    'bridge-clearances',
+    'draft-shallows',
+    'locks-dams',
+    'anchoring-marinas',
+    'fuel-engines',
+    'cruising-buddies',
+    'route-planning',
+    'boat-setup-gear',
+    'anchorages-and-marinas',
+    'route-timing-rivers',
+    'bridge-clearance-bottlenecks',
+    'anchorages-marinas-gulf-crossing',
+    'trawler-gear-power-systems'
+  ];
 
-  const { data: topics } = await supabase
-    .from('forum_topics')
-    .select('slug');
-
-  return (topics || []).map((t) => ({
-    params: { slug: t.slug },
+  return slugs.map((slug) => ({
+    params: { slug }
   }));
 }
 
 const { slug } = Astro.params;
-
-// Fetch topic details
-const { data: topic } = await supabase
-  .from('forum_topics')
-  .select('*')
-  .eq('slug', slug)
-  .single();
-
-// Fetch approved comments for this topic
-const { data: comments } = await supabase
-  .from('forum_comments')
-  .select('*')
-  .eq('topic_slug', slug)
-  .eq('approved', true)
-  .order('created_at', { ascending: true });
 ---
 
 <!DOCTYPE html>
@@ -42,13 +29,13 @@ const { data: comments } = await supabase
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{topic ? topic.title : 'Topic'} | The Looper Log</title>
+  <title>Topic Discussion | The Looper Log</title>
   <link rel="stylesheet" href="/src/styles/global.css" />
   <style>
     body {
       background-color: #020617;
       color: #f8fafc;
-      font-family: ui-sans-serif, system-ui, sans-serif;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       margin: 0;
       padding: 0;
     }
@@ -79,115 +66,78 @@ const { data: comments } = await supabase
       </a>
     </div>
 
-    {topic ? (
-      <div>
-        <!-- Topic Header -->
-        <article class="bg-slate-900 border border-slate-800 rounded-xl p-6 sm:p-8 mb-8 shadow-sm">
-          <h1 class="text-2xl sm:text-3xl font-extrabold text-white mb-3">
-            {topic.title}
-          </h1>
-          <p class="text-slate-300 text-base leading-relaxed">
-            {topic.description}
-          </p>
-        </article>
+    <!-- Topic Card -->
+    <article id="topic-header" class="bg-slate-900 border border-slate-800 rounded-xl p-6 sm:p-8 mb-8 shadow-sm">
+      <h1 id="topic-title" class="text-2xl sm:text-3xl font-extrabold text-white mb-3">Loading discussion...</h1>
+      <p id="topic-desc" class="text-slate-300 text-base leading-relaxed"></p>
+    </article>
 
-        <!-- Comments List -->
-        <section class="mb-10">
-          <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-            <span>Replies</span>
-            <span class="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-full border border-slate-700">
-              {comments ? comments.length : 0}
-            </span>
-          </h2>
+    <!-- Comments List -->
+    <section class="mb-10">
+      <h2 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+        <span>Replies</span>
+        <span id="reply-badge" class="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-full border border-slate-700">0</span>
+      </h2>
 
-          {comments && comments.length > 0 ? (
-            <div class="space-y-4">
-              {comments.map((c) => (
-                <div class="bg-slate-900/60 border border-slate-800 rounded-lg p-5">
-                  <div class="flex items-center justify-between mb-3 text-xs text-slate-400 border-b border-slate-800/60 pb-2">
-                    <div class="flex items-center gap-2">
-                      <span class="font-bold text-amber-400">{c.author_name || 'Anonymous Cruiser'}</span>
-                      {c.boat_name && (
-                        <span class="text-slate-500">• m/v {c.boat_name}</span>
-                      )}
-                    </div>
-                    <span>{new Date(c.created_at).toLocaleDateString()}</span>
-                  </div>
-                  <p class="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">
-                    {c.comment_text}
-                  </p>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div class="bg-slate-900/30 border border-dashed border-slate-800 rounded-lg p-8 text-center text-slate-400 text-sm">
-              No replies on this topic yet. Be the first to share advice or insights!
-            </div>
-          )}
-        </section>
-
-        <!-- Add Comment Form -->
-        <section class="bg-slate-900 border border-slate-800 rounded-xl p-6 sm:p-8">
-          <h3 class="text-lg font-bold text-white mb-4">Post a Comment</h3>
-          
-          <form id="comment-form" class="space-y-4">
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label for="author_name" class="block text-xs font-semibold text-slate-300 mb-1">Your Name *</label>
-                <input
-                  type="text"
-                  id="author_name"
-                  name="author_name"
-                  required
-                  placeholder="e.g. Captain Dan"
-                  class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
-                />
-              </div>
-              <div>
-                <label for="boat_name" class="block text-xs font-semibold text-slate-300 mb-1">Boat Name (Optional)</label>
-                <input
-                  type="text"
-                  id="boat_name"
-                  name="boat_name"
-                  placeholder="e.g. Sea Nomad"
-                  class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label for="comment_text" class="block text-xs font-semibold text-slate-300 mb-1">Message *</label>
-              <textarea
-                id="comment_text"
-                name="comment_text"
-                rows="4"
-                required
-                placeholder="Share your experience, updates, or tips for this topic..."
-                class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
-              ></textarea>
-            </div>
-
-            <div id="status-box" class="hidden text-sm p-3 rounded-lg"></div>
-
-            <button
-              type="submit"
-              id="submit-btn"
-              class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-5 py-2.5 rounded-lg text-sm transition-colors cursor-pointer"
-            >
-              Post Comment
-            </button>
-          </form>
-        </section>
+      <div id="comments-list" class="space-y-4">
+        <div class="bg-slate-900/30 border border-dashed border-slate-800 rounded-lg p-6 text-center text-slate-400 text-sm">
+          Loading replies...
+        </div>
       </div>
-    ) : (
-      <div class="text-center py-20">
-        <h2 class="text-2xl font-bold text-white mb-2">Topic Not Found</h2>
-        <p class="text-slate-400 text-sm mb-6">This discussion topic doesn't exist or has been removed.</p>
-        <a href="/community" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm">
-          Return to Community
-        </a>
-      </div>
-    )}
+    </section>
+
+    <!-- Post Comment Form -->
+    <section class="bg-slate-900 border border-slate-800 rounded-xl p-6 sm:p-8">
+      <h3 class="text-lg font-bold text-white mb-4">Post a Comment</h3>
+      
+      <form id="comment-form" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="author_name" class="block text-xs font-semibold text-slate-300 mb-1">Your Name *</label>
+            <input
+              type="text"
+              id="author_name"
+              name="author_name"
+              required
+              placeholder="e.g. Captain Dan"
+              class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
+            />
+          </div>
+          <div>
+            <label for="boat_name" class="block text-xs font-semibold text-slate-300 mb-1">Boat Name (Optional)</label>
+            <input
+              type="text"
+              id="boat_name"
+              name="boat_name"
+              placeholder="e.g. Sea Nomad"
+              class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label for="comment_text" class="block text-xs font-semibold text-slate-300 mb-1">Message *</label>
+          <textarea
+            id="comment_text"
+            name="comment_text"
+            rows="4"
+            required
+            placeholder="Share your experience or advice..."
+            class="w-full bg-slate-950 border border-slate-700 rounded-lg px-3.5 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-amber-400"
+          ></textarea>
+        </div>
+
+        <div id="status-box" class="hidden text-sm p-3 rounded-lg"></div>
+
+        <button
+          type="submit"
+          id="submit-btn"
+          class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-5 py-2.5 rounded-lg text-sm transition-colors cursor-pointer"
+        >
+          Post Comment
+        </button>
+      </form>
+    </section>
   </main>
 
   <footer class="border-t border-slate-800 py-8 bg-slate-950 mt-auto">
@@ -196,7 +146,69 @@ const { data: comments } = await supabase
     </div>
   </footer>
 
-  <script define:vars={{ slug, supabaseUrl, supabaseKey }}>
+  <script define:vars={{ slug }}>
+    const SUPABASE_URL = 'https://xrdxysgnjrtvvovozkb.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_nXENTV7fbGij75cm40LcrA_HX0XsgDW';
+
+    async function loadTopicData() {
+      try {
+        const [resTopic, resComments] = await Promise.all([
+          fetch(`${SUPABASE_URL}/rest/v1/forum_topics?slug=eq.${slug}&select=*`, {
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`
+            }
+          }),
+          fetch(`${SUPABASE_URL}/rest/v1/forum_comments?topic_slug=eq.${slug}&approved=eq.true&order=created_at.asc`, {
+            headers: {
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`
+            }
+          })
+        ]);
+
+        const [topic] = await resTopic.json();
+        const comments = await resComments.json();
+
+        if (topic) {
+          document.getElementById('topic-title').innerText = topic.title;
+          document.getElementById('topic-desc').innerText = topic.description || '';
+          document.title = `${topic.title} | The Looper Log`;
+        }
+
+        const replyBadge = document.getElementById('reply-badge');
+        const commentsList = document.getElementById('comments-list');
+
+        replyBadge.innerText = (comments || []).length;
+
+        if (Array.isArray(comments) && comments.length > 0) {
+          commentsList.innerHTML = comments.map(c => `
+            <div class="bg-slate-900/60 border border-slate-800 rounded-lg p-5">
+              <div class="flex items-center justify-between mb-3 text-xs text-slate-400 border-b border-slate-800/60 pb-2">
+                <div class="flex items-center gap-2">
+                  <span class="font-bold text-amber-400">${c.author_name || 'Anonymous Cruiser'}</span>
+                  ${c.boat_name ? `<span class="text-slate-500">• m/v ${c.boat_name}</span>` : ''}
+                </div>
+                <span>${new Date(c.created_at).toLocaleDateString()}</span>
+              </div>
+              <p class="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">${c.comment_text}</p>
+            </div>
+          `).join('');
+        } else {
+          commentsList.innerHTML = `
+            <div class="bg-slate-900/30 border border-dashed border-slate-800 rounded-lg p-6 text-center text-slate-400 text-sm">
+              No replies yet. Be the first to share advice or insights!
+            </div>
+          `;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    loadTopicData();
+
+    // Handle Comment Submission
     const form = document.getElementById('comment-form');
     const statusBox = document.getElementById('status-box');
     const submitBtn = document.getElementById('submit-btn');
@@ -212,11 +224,11 @@ const { data: comments } = await supabase
         const comment_text = document.getElementById('comment_text').value.trim();
 
         try {
-          const res = await fetch(`${supabaseUrl}/rest/v1/forum_comments`, {
+          const res = await fetch(`${SUPABASE_URL}/rest/v1/forum_comments`, {
             method: 'POST',
             headers: {
-              'apikey': supabaseKey,
-              'Authorization': `Bearer ${supabaseKey}`,
+              'apikey': SUPABASE_KEY,
+              'Authorization': `Bearer ${SUPABASE_KEY}`,
               'Content-Type': 'application/json',
               'Prefer': 'return=minimal'
             },
@@ -235,16 +247,19 @@ const { data: comments } = await supabase
           }
 
           statusBox.className = 'text-sm p-3 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-          statusBox.innerText = 'Comment posted successfully! Refreshing...';
+          statusBox.innerText = 'Comment posted successfully!';
           statusBox.classList.remove('hidden');
           form.reset();
 
           setTimeout(() => {
-            window.location.reload();
-          }, 1200);
+            loadTopicData();
+            statusBox.classList.add('hidden');
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Post Comment';
+          }, 1000);
         } catch (err) {
           statusBox.className = 'text-sm p-3 rounded-lg bg-rose-500/10 text-rose-400 border border-rose-500/20';
-          statusBox.innerText = `Error: ${err.message || 'Unable to submit comment. Please try again.'}`;
+          statusBox.innerText = `Error: ${err.message || 'Unable to submit comment.'}`;
           statusBox.classList.remove('hidden');
           submitBtn.disabled = false;
           submitBtn.innerText = 'Post Comment';
