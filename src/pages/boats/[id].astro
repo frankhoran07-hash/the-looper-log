@@ -54,20 +54,37 @@ const make = model.make || model.manufacturer || '';
 const modelName = model.model_name || model.make_model || '';
 const displayTitle = boat.title || `${boat.year || ''} ${make} ${modelName}`.trim() || 'Great Loop Vessel';
 
-// Link & Source handling across all possible scraper schemas
+// Link & Source handling across all portals
 const rawUrl = (boat.listing_url || boat.url || boat.source_url || boat.link || '').trim();
-const sourceSite = (boat.source_site || boat.source || 'YachtWorld').toUpperCase();
-const location = boat.location || boat.city_state || (boat.state ? `${boat.city ? boat.city + ', ' : ''}${boat.state}` : null);
+const sourceRaw = (boat.source_site || boat.source || '').toLowerCase();
 
-// Detect dummy / seed / offline links and build fallback search URL
+let sourceSite = 'BROKER';
+let portalSearchBase = 'https://www.yachtworld.com/boats-for-sale/?keyword=';
+
+if (sourceRaw.includes('boatdealer') || rawUrl.includes('boatdealers.ca')) {
+  sourceSite = 'BoatDealers.ca';
+  portalSearchBase = 'https://www.boatdealers.ca/boats-for-sale/search?keywords=';
+} else if (sourceRaw.includes('boattrader') || rawUrl.includes('boattrader.com')) {
+  sourceSite = 'Boat Trader';
+  portalSearchBase = 'https://www.boattrader.com/boats/search/?keyword=';
+} else if (sourceRaw.includes('yachtworld') || rawUrl.includes('yachtworld.com')) {
+  sourceSite = 'YachtWorld';
+  portalSearchBase = 'https://www.yachtworld.com/boats-for-sale/?keyword=';
+} else if (boat.source_site || boat.source) {
+  sourceSite = (boat.source_site || boat.source).toUpperCase();
+}
+
+// Detect dummy / seed / offline links
 const isDummyUrl = !rawUrl || rawUrl.includes('example') || rawUrl.includes('test.com') || rawUrl.includes('localhost');
 const searchQuery = encodeURIComponent(`${boat.year || ''} ${make} ${modelName}`.trim() || displayTitle);
-const portalSearchUrl = `https://www.yachtworld.com/boats-for-sale/?keyword=${searchQuery}`;
+const portalSearchUrl = `${portalSearchBase}${searchQuery}`;
 
 const destinationUrl = !isDummyUrl ? rawUrl : portalSearchUrl;
 const buttonLabel = !isDummyUrl 
   ? `View Original Listing on ${sourceSite}` 
-  : `Search Current ${make} ${modelName} Listings ↗`;
+  : `Search ${make} ${modelName} on ${sourceSite} ↗`;
+
+const location = boat.location || boat.city_state || (boat.state ? `${boat.city ? boat.city + ', ' : ''}${boat.state}` : null);
 
 // Price formatting
 const rawPrice = boat.current_asking_price ?? boat.price;
@@ -114,7 +131,7 @@ const writeup = (boat.description || boat.notes || '').trim();
           rel="noopener noreferrer" 
           class="inline-flex items-center gap-2 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-amber-400 border border-slate-700 hover:border-amber-500 rounded-lg text-xs font-bold transition-all shadow-sm"
         >
-          <span>{isDummyUrl ? 'Search Active Inventory' : `Listed on ${sourceSite}`}</span>
+          <span>{isDummyUrl ? `Search on ${sourceSite}` : `Listed on ${sourceSite}`}</span>
           <span>↗</span>
         </a>
       </div>
@@ -229,7 +246,7 @@ const writeup = (boat.description || boat.notes || '').trim();
               </a>
               {isDummyUrl && (
                 <p class="text-[11px] text-slate-500 text-center mt-2">
-                  Original listing URL expired or archival. Redirecting to active market search.
+                  Original listing URL expired or archival. Redirecting to active {sourceSite} search results.
                 </p>
               )}
             </div>
@@ -331,7 +348,7 @@ const writeup = (boat.description || boat.notes || '').trim();
               rel="noopener noreferrer" 
               class="mt-6 block w-full text-center py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 hover:border-amber-500 font-bold rounded-xl text-xs transition-colors shadow-md"
             >
-              {isDummyUrl ? 'Search Model Listings ↗' : `Go to Listing at ${sourceSite} ↗`}
+              {isDummyUrl ? `Search on ${sourceSite} ↗` : `Go to Listing at ${sourceSite} ↗`}
             </a>
           </div>
 
