@@ -21,7 +21,7 @@ function cleanBoatTitle(rawTitle, year) {
 // Extract unique makes from listings
 const makesSet = new Set();
 boats.forEach((b) => {
-  let title = (b.boat_models?.make_model || b.title || '').trim();
+  let title = (b.boat_models?.make || b.boat_models?.make_model || b.title || '').trim();
   title = title.replace(/^(\d{4}\s*)+/, '');
   const brand = title.split(' ')[0];
   if (brand && brand.length > 2 && isNaN(brand)) {
@@ -159,28 +159,31 @@ const uniqueMakes = Array.from(makesSet).sort();
           const model = boat.boat_models || {};
           const displayTitle = cleanBoatTitle(boat.title || model.make_model, boat.year);
 
-          // Numerical air draft and water draft parsing
-          const rawAir = model.air_draft_clean_ft || model.air_draft_ft || boat.air_draft || 18.5;
-          const airDraft = parseFloat(rawAir) || 18.5;
-          const rawWater = model.water_draft_ft || boat.draft || 3.25;
-          const waterDraft = parseFloat(rawWater) || 3.25;
+          // Correct column names matching boat_models schema
+          const airDraft = model.air_draft_feet != null 
+            ? parseFloat(model.air_draft_feet) 
+            : (parseFloat(boat.air_draft) || null);
 
-          const cruiseSpeed = model.cruise_speed_knots || 16;
-          const cruiseGph = model.gph_at_cruise || 22;
+          const waterDraft = model.water_draft_feet != null 
+            ? parseFloat(model.water_draft_feet) 
+            : (parseFloat(boat.draft) || null);
+
+          const cruiseSpeed = model.typical_cruise_speed_knots ?? null;
+          const cruiseGph = model.typical_gph ?? null;
 
           // Schema column current_asking_price
           const rawPriceVal = boat.current_asking_price ?? boat.price;
           const cleanPrice = rawPriceVal ? parseFloat(String(rawPriceVal).replace(/[^0-9.]/g, '')) : 0;
           const formattedPrice = cleanPrice > 0 ? `$${cleanPrice.toLocaleString()} USD` : 'Inquire';
 
-          const sourceSite = (boat.source_site || boat.source || 'BOATTRADER').toUpperCase();
+          const sourceSite = (boat.source_site || boat.source || 'BROKER').toUpperCase();
 
           return (
             <div 
               class="boat-card p-5 flex flex-col justify-between"
               data-title={displayTitle.toLowerCase()}
               data-price={cleanPrice}
-              data-airdraft={airDraft}
+              data-airdraft={airDraft || 99}
             >
               <div>
                 <div class="flex items-center justify-between mb-3">
@@ -199,15 +202,17 @@ const uniqueMakes = Array.from(makesSet).sort();
                 <div class="grid grid-cols-3 gap-2 py-3 border-y border-slate-800 text-xs mb-4">
                   <div>
                     <span class="text-slate-500 block font-medium">Air Draft</span>
-                    <span class="font-bold text-slate-200">{airDraft} ft</span>
+                    <span class="font-bold text-slate-200">{airDraft ? `${airDraft} ft` : '—'}</span>
                   </div>
                   <div>
                     <span class="text-slate-500 block font-medium">Water Draft</span>
-                    <span class="font-bold text-slate-200">{waterDraft} ft</span>
+                    <span class="font-bold text-slate-200">{waterDraft ? `${waterDraft} ft` : '—'}</span>
                   </div>
                   <div>
                     <span class="text-slate-500 block font-medium">Cruise / GPH</span>
-                    <span class="font-bold text-slate-200">{cruiseSpeed} kts @ {cruiseGph} gph</span>
+                    <span class="font-bold text-slate-200">
+                      {cruiseSpeed && cruiseGph ? `${cruiseSpeed} kts @ ${cruiseGph} gph` : (cruiseSpeed ? `${cruiseSpeed} kts` : '—')}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -249,19 +254,19 @@ const uniqueMakes = Array.from(makesSet).sort();
         cards.forEach(card => {
           const title = (card.getAttribute('data-title') || '').toLowerCase();
           const price = parseFloat(card.getAttribute('data-price')) || 0;
-          const airDraft = parseFloat(card.getAttribute('data-airdraft')) || 18.5;
+          const airDraft = parseFloat(card.getAttribute('data-airdraft')) || 99;
 
           // 1. Make match
           const matchesMake = (selectedMake === 'all' || title.includes(selectedMake));
 
-          // 2. Price match: match actual price when set; keep Inquire visible if unpriced
+          // 2. Price match
           let matchesPrice = true;
           if (selectedPrice !== 'all') {
             const maxBudget = parseFloat(selectedPrice);
             if (price > 0) {
               matchesPrice = price <= maxBudget;
             } else {
-              matchesPrice = false; // Exclude unpriced boats when an explicit budget is chosen
+              matchesPrice = false;
             }
           }
 
