@@ -14,7 +14,7 @@ const boats = listings || [];
 // Helper to strip duplicate leading years from titles
 function cleanBoatTitle(rawTitle, year) {
   let cleaned = (rawTitle || 'Vessel').trim();
-  // Remove consecutive duplicate 4-digit years at the start (e.g., "2022 2022 Jeanneau" -> "2022 Jeanneau")
+  // Remove duplicate 4-digit years at the start (e.g. "2022 2022 Jeanneau" -> "2022 Jeanneau")
   cleaned = cleaned.replace(/^(\b\d{4}\b\s+)+/, '');
   if (year && !cleaned.startsWith(String(year))) {
     return `${year} ${cleaned}`;
@@ -22,11 +22,10 @@ function cleanBoatTitle(rawTitle, year) {
   return year ? `${year} ${cleaned}` : cleaned;
 }
 
-// Extract clean brand / makes for filter dropdown
+// Extract unique makes from listings
 const makesSet = new Set();
 boats.forEach((b) => {
   let title = (b.boat_models?.make_model || b.title || '').trim();
-  // Strip leading years
   title = title.replace(/^(\d{4}\s*)+/, '');
   const brand = title.split(' ')[0];
   if (brand && brand.length > 2 && isNaN(brand)) {
@@ -72,7 +71,7 @@ const uniqueMakes = Array.from(makesSet).sort();
     <header class="border-b border-slate-800 bg-slate-900/90 backdrop-blur sticky top-0 z-50">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <a href="/" class="flex items-center gap-2 text-amber-400 font-extrabold text-xl tracking-wide">
-          <span>⚓</span>
+          <span>&#9875;</span>
           <span>The Looper Log</span>
         </a>
         <nav class="flex items-center gap-6 text-sm font-semibold">
@@ -162,11 +161,9 @@ const uniqueMakes = Array.from(makesSet).sort();
       <div id="vessels-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {boats.map((boat) => {
           const model = boat.boat_models || {};
-          
-          // Clear double year from title
           const displayTitle = cleanBoatTitle(boat.title || model.make_model, boat.year);
 
-          // Numeric air and water draft parsing
+          // Numerical air draft and water draft parsing
           const rawAir = model.air_draft_clean_ft || model.air_draft_ft || boat.air_draft || 18.5;
           const airDraft = parseFloat(rawAir) || 18.5;
           const rawWater = model.water_draft_ft || boat.draft || 3.25;
@@ -175,7 +172,6 @@ const uniqueMakes = Array.from(makesSet).sort();
           const cruiseSpeed = model.cruise_speed_knots || 16;
           const cruiseGph = model.gph_at_cruise || 22;
 
-          // Price parsing
           const cleanPrice = parseFloat(String(boat.price || '0').replace(/[^0-9.]/g, '')) || 0;
 
           return (
@@ -186,7 +182,6 @@ const uniqueMakes = Array.from(makesSet).sort();
               data-airdraft={airDraft}
             >
               <div>
-                <!-- Source Badge & Price Header -->
                 <div class="flex items-center justify-between mb-3">
                   <span class="text-xs font-bold px-2.5 py-0.5 rounded bg-slate-800 text-slate-300 uppercase tracking-wider border border-slate-700">
                     {boat.source || 'BOATTRADER'}
@@ -196,12 +191,10 @@ const uniqueMakes = Array.from(makesSet).sort();
                   </span>
                 </div>
 
-                <!-- Vessel Title -->
                 <h2 class="text-base font-bold text-white mb-4 line-clamp-1">
                   {displayTitle}
                 </h2>
 
-                <!-- Specs Grid -->
                 <div class="grid grid-cols-3 gap-2 py-3 border-y border-slate-800 text-xs mb-4">
                   <div>
                     <span class="text-slate-500 block font-medium">Air Draft</span>
@@ -218,7 +211,6 @@ const uniqueMakes = Array.from(makesSet).sort();
                 </div>
               </div>
 
-              <!-- Action Card Footer -->
               <div class="flex items-center justify-between pt-2">
                 <span class="text-xs text-slate-500">
                   {boat.first_seen_at ? `Listed ${new Date(boat.first_seen_at).toLocaleDateString()}` : 'Active'}
@@ -254,24 +246,32 @@ const uniqueMakes = Array.from(makesSet).sort();
         let visibleCount = 0;
 
         cards.forEach(card => {
-          const title = card.getAttribute('data-title') || '';
-          const price = parseFloat(card.getAttribute('data-price')) || 0;
-          const airDraft = parseFloat(card.getAttribute('data-airdraft')) || 0;
+          const title = (card.getAttribute('data-title') || '').toLowerCase();
+          const rawPrice = card.getAttribute('data-price');
+          const rawAir = card.getAttribute('data-airdraft');
 
-          // 1. Make match
+          const price = parseFloat(rawPrice) || 0;
+          const airDraft = parseFloat(rawAir) > 0 ? parseFloat(rawAir) : 18.5;
+
+          // 1. Make / Model Filter
           const matchesMake = (selectedMake === 'all' || title.includes(selectedMake));
 
-          // 2. Price match (if user chooses a budget limit, only show boats that actually fit the limit)
+          // 2. Price Filter (matches boats within budget, or includes 'Inquire' listings)
           let matchesPrice = true;
           if (selectedPrice !== 'all') {
             const maxBudget = parseFloat(selectedPrice);
-            matchesPrice = price > 0 && price <= maxBudget;
+            if (price > 0) {
+              matchesPrice = price <= maxBudget;
+            } else {
+              matchesPrice = true;
+            }
           }
 
-          // 3. Air draft clearance match
+          // 3. Air Draft Clearance Filter
           let matchesAirDraft = true;
           if (selectedAirDraft !== 'all') {
-            matchesAirDraft = airDraft <= parseFloat(selectedAirDraft);
+            const maxAirDraft = parseFloat(selectedAirDraft);
+            matchesAirDraft = airDraft <= maxAirDraft;
           }
 
           if (matchesMake && matchesPrice && matchesAirDraft) {
