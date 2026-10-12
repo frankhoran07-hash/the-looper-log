@@ -1,4 +1,6 @@
 ---
+export const prerender = false;
+
 import '../styles/global.css';
 import { supabase } from '../lib/supabase';
 
@@ -14,6 +16,9 @@ try {
 } catch (e) {
   console.error("Error loading hazard markers:", e);
 }
+
+const supabaseUrl = import.meta.env.PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.PUBLIC_SUPABASE_ANON_KEY;
 ---
 
 <!doctype html>
@@ -24,6 +29,7 @@ try {
     <title>Hazard Lookout Map | The Looper Log</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script is:inline src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script is:inline src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   </head>
   <body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
 
@@ -61,46 +67,102 @@ try {
       <p>© 2026 The Looper Log. Built for America's Great Loop cruisers.</p>
     </footer>
 
-    <!-- Leaflet Runtime Script -->
-    <script is:inline define:vars={{ initialHazards: hazards }}>
+    <!-- Leaflet & Supabase Persistence Script -->
+    <script is:inline define:vars={{ initialHazards: hazards, supabaseUrl, supabaseAnonKey }}>
       document.addEventListener('DOMContentLoaded', () => {
-        const map = L.map('map').setView([36.5, -85.0], 5);
+        const client = window.supabase ? window.supabase.createClient(supabaseUrl, supabaseAnonKey) : null;
+        const map = L.map('map', { doubleClickZoom: false }).setView([36.5, -85.0], 5);
 
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 18,
           attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
+        // Global delete handler exposed to popup inline onclick
+        window.deleteHazard = async (id) => {
+          if (!id) return;
+          if (!confirm("Are you sure you want to remove this hazard?")) return;
+
+          if (client) {
+            const { error } = await client
+              .from('hazard_markers')
+              .delete()
+              .eq('id', id);
+
+            if (error) {
+              console.error("Supabase delete error:", error);
+              alert("Failed to delete hazard: " + error.message);
+              return;
+            }
+          }
+
+          location.reload();
+        };
+
+        function createPopupContent(h) {
+          const deleteBtn = h.id 
+            ? `<button onclick="window.deleteHazard('${h.id}')" style="color: #dc2626; background: none; border: none; cursor: pointer; font-size: 11px; font-weight: 600; padding: 0;">Delete</button>` 
+            : '';
+
+          return `
+            <div style="font-family: sans-serif; font-size: 13px; color: #0f172a; min-width: 180px;">
+              <span style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #b91c1c;">${h.category || 'shoal'}</span><br/>
+              <strong style="font-size: 14px;">${h.title}</strong>
+              <p style="margin: 6px 0 4px 0; color: #334155;">${h.description || 'No description provided.'}</p>
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 6px; margin-top: 6px;">
+                <span>${h.reported_by || 'Anonymous Cruiser'}</span>
+                ${deleteBtn}
+              </div>
+            </div>
+          `;
+        }
+
+        // Render markers loaded on the server
         initialHazards.forEach(h => {
           L.marker([h.latitude, h.longitude])
             .addTo(map)
-            .bindPopup(`
-              <div style="font-family: sans-serif; font-size: 13px; color: #0f172a; min-width: 180px;">
-                <span style="font-size: 11px; font-weight: bold; text-transform: uppercase; color: #b91c1c;">${h.category || 'Hazard'}</span><br/>
-                <strong style="font-size: 14px;">${h.title}</strong>
-                <p style="margin: 6px 0 4px 0; color: #334155;">${h.description || 'No description provided.'}</p>
-                <div style="font-size: 11px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 4px;">
-                  Reported by: ${h.reported_by || 'Anonymous'}
-                </div>
-              </div>
-            `);
+            .bindPopup(createPopupContent(h));
         });
 
-        map.on('dblclick', (e) => {
+        // Double-click handler to insert into Supabase and place marker
+        map.on('dblclick', async (e) => {
           const title = prompt("Enter hazard title (e.g. 'Shallow Shoal at Low Tide'):");
           if (!title) return;
-          const description = prompt("Enter details/notes for other cruisers:");
+          const description = prompt("Enter details/notes for other cruisers:") || '';
 
-          L.marker([e.latlng.lat, e.latlng.lng])
-            .addTo(map)
-            .bindPopup(`
-              <div style="font-family: sans-serif; font-size: 13px; color: #0f172a;">
-                <span style="font-size: 11px; font-weight: bold; color: #b91c1c;">ALERT</span><br/>
-                <strong style="font-size: 14px;">${title}</strong>
-                <p style="margin: 6px 0 0 0; color: #334155;">${description || ''}</p>
-              </div>
-            `)
-            .openPopup();
+          const newHazard = {
+            title: title.trim(),
+            description: description.trim(),
+            category: 'shoal',
+            reported_by: 'Anonymous Cruiser',
+            latitude: e.latlng.lat,
+            longitude: e.latlng.lng
+          };
+
+          if (client) {
+            const { data, error } = await client
+              .from('hazard_markers')
+              .insert([newHazard])
+              .select();
+
+            if (error) {
+              console.error("Supabase insert error:", error);
+              alert("Error saving hazard: " + error.message);
+              return;
+            }
+
+            const savedHazard = (data && data[0]) ? data[0] : newHazard;
+
+            L.marker([savedHazard.latitude, savedHazard.longitude])
+              .addTo(map)
+              .bindPopup(createPopupContent(savedHazard))
+              .openPopup();
+          } else {
+            L.marker([newHazard.latitude, newHazard.longitude])
+              .addTo(map)
+              .bindPopup(createPopupContent(newHazard))
+              .openPopup();
+          }
         });
       });
     </script>
